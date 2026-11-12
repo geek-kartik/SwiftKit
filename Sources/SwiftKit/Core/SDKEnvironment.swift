@@ -1,28 +1,16 @@
 import Foundation
 
 /// Represents the runtime environment for the SwiftKit SDK.
+/// SwiftKit is strictly built for internal company projects and operates exclusively in development mode.
 public enum SDKEnvironment: String, CaseIterable, Sendable {
-    /// Development environment for local testing and debugging.
+    /// Development environment for internal company testing, debugging, and experimentation.
     case development
-    /// User Acceptance Testing environment for QA and staging validation.
-    case uat
-    /// Production environment for live end-user application instances.
-    case production
-
-    /// Indicates whether the environment corresponds to production.
-    public var isProduction: Bool {
-        self == .production
-    }
 
     /// Descriptive title for logging and diagnostic purposes.
     public var displayName: String {
         switch self {
         case .development:
             return "Development"
-        case .uat:
-            return "UAT"
-        case .production:
-            return "Production"
         }
     }
 }

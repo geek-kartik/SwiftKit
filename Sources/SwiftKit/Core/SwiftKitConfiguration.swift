@@ -2,7 +2,7 @@ import Foundation
 
 /// Encapsulates initialization parameters and operational settings for SwiftKit and its logging subsystem.
 public struct SwiftKitConfiguration: Sendable {
-    /// Active SDK target environment.
+    /// Active SDK target environment (development mode only).
     public let environment: SDKEnvironment
 
     /// Subsystem identifier for Apple OSLog.
@@ -22,14 +22,14 @@ public struct SwiftKitConfiguration: Sendable {
 
     /// Initializes a new configuration instance for SwiftKit.
     /// - Parameters:
-    ///   - environment: The target runtime environment (`.development`, `.uat`, `.production`).
+    ///   - environment: The target runtime environment (`.development`). Defaults to `.development`.
     ///   - subsystem: OSLog subsystem identifier. Defaults to host bundle ID or `"com.swiftkit.sdk"`.
     ///   - category: OSLog category. Defaults to `"SwiftKit"`.
-    ///   - minimumLogLevel: Minimum log severity threshold. Defaults to `.debug` in development, `.info` in UAT, and `.warning` in production.
+    ///   - minimumLogLevel: Minimum log severity threshold. Defaults to `.debug` for internal development.
     ///   - isMaskingEnabled: Redacts sensitive tokens and personal data when `true`. Defaults to `true`.
     ///   - isLoggingEnabled: Master toggle for logging. Defaults to `true`.
     public init(
-        environment: SDKEnvironment,
+        environment: SDKEnvironment = .development,
         subsystem: String = Bundle.main.bundleIdentifier ?? "com.swiftkit.sdk",
         category: String = "SwiftKit",
         minimumLogLevel: LogLevel? = nil,
@@ -39,21 +39,9 @@ public struct SwiftKitConfiguration: Sendable {
         self.environment = environment
         self.subsystem = subsystem
         self.category = category
+        self.minimumLogLevel = minimumLogLevel ?? .debug
         self.isMaskingEnabled = isMaskingEnabled
         self.isLoggingEnabled = isLoggingEnabled
-
-        if let explicitLevel = minimumLogLevel {
-            self.minimumLogLevel = explicitLevel
-        } else {
-            switch environment {
-            case .development:
-                self.minimumLogLevel = .debug
-            case .uat:
-                self.minimumLogLevel = .info
-            case .production:
-                self.minimumLogLevel = .warning
-            }
-        }
     }
 
     /// Validates configuration parameters.

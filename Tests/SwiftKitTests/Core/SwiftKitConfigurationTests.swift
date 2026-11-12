@@ -14,7 +14,6 @@ final class SwiftKitConfigurationTests: XCTestCase {
 
         XCTAssertNoThrow(try config.validate())
         XCTAssertEqual(config.environment, .development)
-        XCTAssertFalse(config.environment.isProduction)
         XCTAssertEqual(config.minimumLogLevel, .debug)
         XCTAssertTrue(config.isMaskingEnabled)
         XCTAssertTrue(config.isLoggingEnabled)
@@ -24,11 +23,9 @@ final class SwiftKitConfigurationTests: XCTestCase {
         let devConfig = SwiftKitConfiguration(environment: .development)
         XCTAssertEqual(devConfig.minimumLogLevel, .debug)
 
-        let uatConfig = SwiftKitConfiguration(environment: .uat)
-        XCTAssertEqual(uatConfig.minimumLogLevel, .info)
-
-        let prodConfig = SwiftKitConfiguration(environment: .production)
-        XCTAssertEqual(prodConfig.minimumLogLevel, .warning)
+        let defaultConfig = SwiftKitConfiguration()
+        XCTAssertEqual(defaultConfig.environment, .development)
+        XCTAssertEqual(defaultConfig.minimumLogLevel, .debug)
     }
 
     func testEmptySubsystemThrows() {

@@ -5,7 +5,7 @@ internal final class SDKDependencyContainer: @unchecked Sendable {
     internal let configuration: SwiftKitConfiguration
     internal let logger: LoggerProtocol
 
-    /// Production assembly based on validated configuration.
+    /// Internal assembly based on validated configuration.
     internal init(configuration: SwiftKitConfiguration) {
         self.configuration = configuration
 
