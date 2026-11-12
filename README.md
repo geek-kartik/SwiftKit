@@ -1,6 +1,6 @@
 # SwiftKit
 
-A lightweight, production-grade native iOS utility SDK designed to provide common mobile architecture foundations through independent, decoupled, and testable modules with zero external third-party dependencies.
+A native iOS utility SDK which provides common mobile architecture foundations through independent, decoupled, and testable modules with zero external third-party dependencies.
 
 ---
 

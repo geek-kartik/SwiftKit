@@ -40,7 +40,7 @@ final class SwiftKitTests: XCTestCase {
     }
 
     func testResetForTesting() throws {
-        let config = SwiftKitConfiguration(environment: .uat)
+        let config = SwiftKitConfiguration(environment: .development)
 
         try SwiftKit.initialize(configuration: config)
         XCTAssertTrue(SwiftKit.isInitialized)
