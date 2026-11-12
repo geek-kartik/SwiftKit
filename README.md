@@ -14,7 +14,6 @@ A lightweight, production-grade native iOS utility SDK designed to provide commo
 | **Connectivity** | Real-time network reachability monitoring | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
 | **Session** | User session state and expiration checking | `Foundation` | `SessionManagerProtocol` |
 | **Logger** | Unified logging with automatic data masking | `OSLog` (`os.Logger`) | `LoggerProtocol` |
-| **Permissions** | Camera, Photos, Location, Notification access | `AVFoundation`, `Photos`, `CoreLocation`, `UserNotifications` | `PermissionManagerProtocol` |
 | **Core** | Centralized SDK initialization & DI container | `Foundation` | `SwiftKit` |
 
 ---
@@ -92,9 +91,5 @@ print("Device: \(device.deviceModel), Version: \(device.appVersion)")
 let connectivity = SwiftKit.shared.connectivity
 connectivity.startMonitoring()
 print("Is Online: \(connectivity.isConnected)")
-
-// Permissions
-let cameraStatus = await SwiftKit.shared.permissions.status(for: .camera)
-```
 
 ---
