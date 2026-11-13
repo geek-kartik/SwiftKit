@@ -5,6 +5,7 @@ internal final class SDKDependencyContainer: Sendable {
     internal let configuration: SwiftKitConfiguration
     internal let logger: LoggerProtocol
     internal let secureStorage: SecureStorageProtocol
+    internal let deviceInfo: DeviceInfoProtocol
 
     /// Internal assembly based on validated configuration.
     internal init(configuration: SwiftKitConfiguration) {
@@ -24,13 +25,15 @@ internal final class SDKDependencyContainer: Sendable {
             accessibility: configuration.keychainAccessibility,
             logger: logger
         )
+        self.deviceInfo = SystemDeviceInfo()
     }
 
     /// Custom initializer permitting dependency injection for unit testing.
     internal init(
         configuration: SwiftKitConfiguration,
         logger: LoggerProtocol,
-        secureStorage: SecureStorageProtocol? = nil
+        secureStorage: SecureStorageProtocol? = nil,
+        deviceInfo: DeviceInfoProtocol? = nil
     ) {
         self.configuration = configuration
         self.logger = logger
@@ -39,5 +42,6 @@ internal final class SDKDependencyContainer: Sendable {
             accessibility: configuration.keychainAccessibility,
             logger: logger
         )
+        self.deviceInfo = deviceInfo ?? SystemDeviceInfo()
     }
 }
