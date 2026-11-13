@@ -27,7 +27,8 @@ let package = Package(
             path: "Sources/SwiftKit",
             exclude: [
                 "Modules/Logger/README.md",
-                "Modules/SecureStorage/README.md"
+                "Modules/SecureStorage/README.md",
+                "Modules/DeviceInfo/README.md"
             ]
         ),
         // Comprehensive test suite
