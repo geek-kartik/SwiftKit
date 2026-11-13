@@ -12,7 +12,7 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 | **Logger** | Implemented | Unified logging with automatic data masking | `OSLog` (`os.Logger`) | `LoggerProtocol` |
 | **Secure Storage** | Implemented | Keychain-based credential & token storage | `Security` | `SecureStorageProtocol` |
 | **Networking** | Planned | Asynchronous HTTP client with JSON mapping | `Foundation` (`URLSession`) | `NetworkClientProtocol` |
-| **Device Info** | Planned | Safe hardware, OS, and app version metrics | `Foundation`, `UIKit` | `DeviceInfoProtocol` |
+| **Device Info** | Implemented | Device model, app/OS versions, and build environment | `Foundation` | `DeviceInfoProtocol` |
 | **Connectivity** | Planned | Real-time network reachability monitoring | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
 | **Session** | Planned | User session state and expiration checking | `Foundation` | `SessionManagerProtocol` |
 
@@ -80,13 +80,30 @@ let token = try SwiftKit.shared.secureStorage.string(forKey: "authToken")
 
 // Remove a stored value when it is no longer needed
 try SwiftKit.shared.secureStorage.remove(forKey: "authToken")
+
+// Device model, version, and build environment information
+let deviceInfo = SwiftKit.shared.deviceInfo
+let model = deviceInfo.deviceModel
+let osVersion = deviceInfo.osVersion
+let appVersion = deviceInfo.appVersion
+let buildNumber = deviceInfo.buildNumber
+let bundleIdentifier = deviceInfo.bundleIdentifier
+let appName = deviceInfo.appName
+let isSimulator = deviceInfo.isSimulator
+let isDebugBuild = deviceInfo.isDebugBuild
+
+// Force-update and feature-gating helpers
+if deviceInfo.isUpdateRequired(minimumVersion: "2.5.0") {
+    // Prompt the user to update.
+}
 ```
 
 ### 3. Module Documentation
 
 - [Logger Module](Sources/SwiftKit/Modules/Logger/README.md)
 - [Secure Storage Module](Sources/SwiftKit/Modules/SecureStorage/README.md)
+- [Device Info Module](Sources/SwiftKit/Modules/DeviceInfo/README.md)
 
-Networking, Device Info, Connectivity, and Session are planned modules and will be documented when implemented.
+Networking, Connectivity, and Session are planned modules and will be documented when implemented.
 
 ---

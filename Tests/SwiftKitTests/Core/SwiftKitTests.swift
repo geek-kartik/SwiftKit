@@ -28,6 +28,7 @@ final class SwiftKitTests: XCTestCase {
         XCTAssertEqual(SwiftKit.shared.configuration.environment, .development)
         XCTAssertNotNil(SwiftKit.shared.logger)
         XCTAssertNotNil(SwiftKit.shared.secureStorage)
+        XCTAssertNotNil(SwiftKit.shared.deviceInfo)
     }
 
     func testFacadeResolvesInjectedSecureStorage() throws {
