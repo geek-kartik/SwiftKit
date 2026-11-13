@@ -26,6 +26,7 @@ let package = Package(
             path: "Sources/SwiftKit",
             exclude: [
                 "Modules/Logger/README.md",
+                "Modules/SecureStorage/README.md",
                 "Modules/Connectivity/README.md"
             ]
         ),

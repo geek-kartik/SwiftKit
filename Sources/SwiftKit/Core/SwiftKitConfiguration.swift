@@ -1,6 +1,6 @@
 import Foundation
 
-/// Encapsulates initialization parameters and operational settings for SwiftKit and its logging subsystem.
+/// Encapsulates initialization parameters and operational settings for SwiftKit and its modules.
 public struct SwiftKitConfiguration: Sendable {
     /// Active SDK target environment (development mode only).
     public let environment: SDKEnvironment
@@ -20,6 +20,12 @@ public struct SwiftKitConfiguration: Sendable {
     /// Global flag enabling or disabling logging entirely.
     public let isLoggingEnabled: Bool
 
+    /// Keychain service namespace used by the secure storage module.
+    public let keychainService: String
+
+    /// Keychain access policy applied to newly written values.
+    public let keychainAccessibility: SecureStorageAccessibility
+
     /// Initializes a new configuration instance for SwiftKit.
     /// - Parameters:
     ///   - environment: The target runtime environment (`.development`). Defaults to `.development`.
@@ -28,13 +34,17 @@ public struct SwiftKitConfiguration: Sendable {
     ///   - minimumLogLevel: Minimum log severity threshold. Defaults to `.debug` for internal development.
     ///   - isMaskingEnabled: Redacts sensitive tokens and personal data when `true`. Defaults to `true`.
     ///   - isLoggingEnabled: Master toggle for logging. Defaults to `true`.
+    ///   - keychainService: Keychain service namespace. Defaults to host bundle ID or `"com.swiftkit.sdk"`.
+    ///   - keychainAccessibility: Access policy for newly written Keychain values. Defaults to `.afterFirstUnlockThisDeviceOnly`.
     public init(
         environment: SDKEnvironment = .development,
         subsystem: String = Bundle.main.bundleIdentifier ?? "com.swiftkit.sdk",
         category: String = "SwiftKit",
         minimumLogLevel: LogLevel? = nil,
         isMaskingEnabled: Bool = true,
-        isLoggingEnabled: Bool = true
+        isLoggingEnabled: Bool = true,
+        keychainService: String = Bundle.main.bundleIdentifier ?? "com.swiftkit.sdk",
+        keychainAccessibility: SecureStorageAccessibility = .afterFirstUnlockThisDeviceOnly
     ) {
         self.environment = environment
         self.subsystem = subsystem
@@ -42,6 +52,8 @@ public struct SwiftKitConfiguration: Sendable {
         self.minimumLogLevel = minimumLogLevel ?? .debug
         self.isMaskingEnabled = isMaskingEnabled
         self.isLoggingEnabled = isLoggingEnabled
+        self.keychainService = keychainService
+        self.keychainAccessibility = keychainAccessibility
     }
 
     /// Validates configuration parameters.
@@ -53,6 +65,10 @@ public struct SwiftKitConfiguration: Sendable {
 
         guard !category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw SDKError.invalidConfiguration(reason: "Logging category identifier cannot be empty.")
+        }
+
+        guard !keychainService.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw SDKError.invalidConfiguration(reason: "Keychain service identifier cannot be empty.")
         }
     }
 }

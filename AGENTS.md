@@ -27,16 +27,12 @@ Every agent and developer working on this codebase must adhere strictly to these
   - `Security` (Keychain Services)
   - `OSLog` (`os.Logger`)
   - `Network` (`NWPathMonitor`)
-  - `AVFoundation`
-  - `Photos`
-  - `CoreLocation`
-  - `UserNotifications`
 
 ### 2.2 Exclusively Built for iOS Applications
 SwiftKit is designed, architected, and maintained **exclusively for iOS mobile applications (iOS 15.0+)**.
 - Tailored specifically for iOS mobile application lifecycles, UI paradigms (SwiftUI and UIKit), and device states.
-- Leverages iOS platform capabilities including `UIDevice`, `UIScreen`, battery monitoring, app lifecycles, and system permissions.
-- **Headless Host Runner Testing**: Local developer CLI workflows (`swift test`) and CI runners execute on macOS hosts. When interacting with iOS hardware or runtime singletons (`UIDevice`, `UIApplication`, `PHPhotoLibrary`, etc.), abstract them behind protocols or internal adapters so unit tests can execute headlessly via `swift test` on macOS build hosts without requiring a connected physical device or active simulator.
+- Leverages iOS platform capabilities including `UIDevice`, `UIScreen`, battery monitoring, and app lifecycles.
+- **Headless Host Runner Testing**: Local developer CLI workflows (`swift test`) and CI runners execute on macOS hosts. When interacting with iOS hardware or runtime singletons (`UIDevice`, `UIApplication`, etc.), abstract them behind protocols or internal adapters so unit tests can execute headlessly via `swift test` on macOS build hosts without requiring a connected physical device or active simulator.
 
 ### 2.3 Single SPM Target Architecture
 - The package exposes a single library and target named `SwiftKit` with root `Sources/SwiftKit`.
@@ -69,8 +65,6 @@ Maintain the standard directory structure:
 
 ```text
 SwiftKit/
-├── .github/
-│   └── pull_request_template.md        # Pull request template & checklist
 ├── .swiftlint.yml                      # SwiftLint rule configuration
 ├── Package.swift                       # SPM package manifest (Single target)
 ├── README.md                           # Public SDK documentation & quickstart
@@ -78,7 +72,7 @@ SwiftKit/
 ├── Sources/
 │   └── SwiftKit/
 │       ├── Core/                       # Core SDK initialization & DI container
-│       │   ├── SDKEnvironment.swift    # Runtime environment (.development, .uat, .production)
+│       │   ├── SDKEnvironment.swift    # Runtime environment (.development only)
 │       │   ├── SDKError.swift          # Core SDK error definitions
 │       │   ├── SwiftKitConfiguration.swift # Master configuration struct
 │       │   ├── SDKDependencyContainer.swift # Internal DI container
@@ -93,8 +87,7 @@ SwiftKit/
 │       │   ├── Networking/             # HTTP client module
 │       │   ├── DeviceInfo/             # Device & app metrics module
 │       │   ├── Connectivity/           # Network reachability module
-│       │   ├── Session/                # User session state module
-│       │   └── Permissions/            # System permissions module
+│       │   └── Session/                # User session state module
 │       └── Utilities/                  # Shared cross-cutting utilities
 │           ├── Extensions/             # Foundation extensions (String, Data, etc.)
 │           └── Helpers/                # DataMasker, ThreadSafeBox
@@ -107,8 +100,7 @@ SwiftKit/
         ├── NetworkingTests/            # Networking tests
         ├── DeviceInfoTests/            # DeviceInfo tests
         ├── ConnectivityTests/          # Connectivity tests
-        ├── SessionTests/               # Session tests
-        └── PermissionsTests/           # Permissions tests
+        └── SessionTests/               # Session tests
 ```
 
 ---
@@ -124,7 +116,6 @@ SwiftKit/
 | **Connectivity** | `ConnectivityMonitorProtocol` | `Network` (`NWPathMonitor`) | Real-time network reachability, cellular/wifi detection, connection path updates | Developer 2 |
 | **Session** | `SessionManagerProtocol` | `Foundation` | User session tokens, state tracking, expiry timestamps, session timeout handling | Developer 3 |
 | **Logger** | `LoggerProtocol` | `OSLog` (`os.Logger`) | Structured diagnostic logging with automatic sensitive token/email redaction | Developer 3 |
-| **Permissions** | `PermissionManagerProtocol` | `AVFoundation`, `Photos`, `CoreLocation`, `UserNotifications` | Permission status checking and authorization requests | Developer 3 |
 
 ---
 
@@ -146,10 +137,10 @@ Under `Sources/SwiftKit/Modules/<ModuleName>/`, create:
 - Keep public APIs intuitive, minimal, and decoupled from underlying Apple implementation types where possible.
 
 ### Step 3: Implement the Concrete Class
-- Mark the concrete class as `internal` and `final` (e.g. `internal final class KeychainStorage: SecureStorageProtocol, @unchecked Sendable`).
+- Mark the concrete class as `internal` and `final` (e.g. `internal final class KeychainStorage: SecureStorageProtocol, Sendable`). Use `@unchecked Sendable` only when immutable stored state cannot otherwise be proven `Sendable`.
 - Ensure thread safety: protect mutable state with `NSLock`, `ThreadSafeBox`, or use an `actor`.
 - Redact sensitive data before logging using `DataMasker.mask(...)`.
-- Abstract or mock iOS device-specific hardware/runtime singletons (`UIDevice`, `UIApplication`, `PHPhotoLibrary`) so unit tests run cleanly on host developer machines.
+- Abstract or mock iOS device-specific hardware/runtime singletons (`UIDevice`, `UIApplication`) so unit tests run cleanly on host developer machines.
 
 ### Step 4: Wire into Dependency Container & Facade
 1. Update `Sources/SwiftKit/Core/SwiftKitConfiguration.swift` if the module requires user configuration parameters.

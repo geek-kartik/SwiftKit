@@ -22,6 +22,11 @@ public final class SwiftKit: Sendable {
         container.connectivity
     }
 
+    /// Access to Keychain-backed secure storage.
+    public var secureStorage: SecureStorageProtocol {
+        container.secureStorage
+    }
+
     // MARK: - Initialization Lifecycle
 
     private init(container: SDKDependencyContainer) {

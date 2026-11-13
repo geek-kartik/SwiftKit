@@ -6,21 +6,21 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 
 ## Supported Modules & Technologies
 
-| Module | Purpose | Native Apple Framework | Primary Interface |
-|---|---|---|---|
-| **Secure Storage** | Keychain-based credential & token storage | `Security` | `SecureStorageProtocol` |
-| **Networking** | Asynchronous HTTP client with JSON mapping | `Foundation` (`URLSession`) | `NetworkClientProtocol` |
-| **Device Info** | Safe hardware, OS, and app version metrics | `Foundation`, `UIKit` | `DeviceInfoProtocol` |
-| **Connectivity** | System network-path monitoring and change notifications | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
-| **Session** | User session state and expiration checking | `Foundation` | `SessionManagerProtocol` |
-| **Logger** | Unified logging with automatic data masking | `OSLog` (`os.Logger`) | `LoggerProtocol` |
-| **Core** | Centralized SDK initialization & DI container | `Foundation` | `SwiftKit` |
+| Module | Status | Purpose | Native Apple Framework | Primary Interface |
+|---|---|---|---|---|
+| **Core** | Implemented | Centralized SDK initialization & DI container | `Foundation` | `SwiftKit` |
+| **Logger** | Implemented | Unified logging with automatic data masking | `OSLog` (`os.Logger`) | `LoggerProtocol` |
+| **Secure Storage** | Implemented | Keychain-based credential & token storage | `Security` | `SecureStorageProtocol` |
+| **Networking** | Planned | Asynchronous HTTP client with JSON mapping | `Foundation` (`URLSession`) | `NetworkClientProtocol` |
+| **Device Info** | Planned | Safe hardware, OS, and app version metrics | `Foundation`, `UIKit` | `DeviceInfoProtocol` |
+| **Connectivity** | Implemented | System network-path monitoring and change notifications | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
+| **Session** | Planned | User session state and expiration checking | `Foundation` | `SessionManagerProtocol` |
 
 ---
 
 ## Architecture Highlights
 
-- **Single SPM Target**: `SwiftKit` contains all 7 independent module folders to avoid concurrent `Package.swift` merge conflicts.
+- **Single SPM Target**: `SwiftKit` contains all module folders in one target to avoid concurrent `Package.swift` merge conflicts.
 - **Protocol-Driven**: Clean separation between `Public/` contracts, `Internal/` implementations, and `Models/`.
 - **Modern Concurrency**: First-class support for `async/await` and `AsyncStream`.
 - **Zero Third-Party Dependencies**: Pure native Apple SDK implementation.
@@ -60,9 +60,8 @@ import SwiftKit
 
 let configuration = SwiftKitConfiguration(
     environment: .development,
-    baseURL: URL(string: "https://api.example.com")!,
-    requestTimeout: 30.0,
     keychainService: "com.example.app.storage",
+    keychainAccessibility: .afterFirstUnlockThisDeviceOnly,
     isLoggingEnabled: true
 )
 
@@ -72,41 +71,26 @@ try SwiftKit.initialize(configuration: configuration)
 ### 2. Access Utilities via Shared Facade
 
 ```swift
-// Logging with automatic sensitive token redaction
+// Logging with automatic sensitive data redaction
 SwiftKit.shared.logger.info("Application started successfully.")
 
 // Secure Keychain Storage
 try SwiftKit.shared.secureStorage.setString("jwt_token_here", forKey: "authToken")
+let token = try SwiftKit.shared.secureStorage.string(forKey: "authToken")
 
-// Asynchronous Networking
-struct User: Decodable { let id: String; let name: String }
-let request = APIRequest(path: "/v1/users/me", method: .get)
-let user: User = try await SwiftKit.shared.networking.send(request)
-
-// Device Information
-let device = SwiftKit.shared.deviceInfo
-print("Device: \(device.deviceModel), Version: \(device.appVersion)")
+// Remove a stored value when it is no longer needed
+try SwiftKit.shared.secureStorage.remove(forKey: "authToken")
 
 // Connectivity Monitoring
 let connectivity = SwiftKit.shared.connectivity
-let observation = connectivity.addObserver { status in
-    switch status {
-    case .unknown:
-        // Initial state before the first network-path update. Treat as pending, not offline.
-        break
-    case .connected:
-        // A satisfied system network path is available.
-        break
-    case .disconnected:
-        // No satisfied system network path is available.
-        break
-    }
-}
-
 connectivity.start()
+```
 
-// Later, when updates are no longer needed:
-connectivity.removeObserver(observation)
-connectivity.stop()
+### 3. Module Documentation
+
+- [Logger Module](Sources/SwiftKit/Modules/Logger/README.md)
+- [Secure Storage Module](Sources/SwiftKit/Modules/SecureStorage/README.md)
+
+Networking, Device Info, Connectivity, and Session are planned modules and will be documented when implemented.
 
 ---
