@@ -1,7 +1,7 @@
 import Foundation
 
 /// Centralized entry point and facade for the SwiftKit SDK.
-public final class SwiftKit: @unchecked Sendable {
+public final class SwiftKit: Sendable {
     private static let lock = NSLock()
     private static var instance: SwiftKit?
 

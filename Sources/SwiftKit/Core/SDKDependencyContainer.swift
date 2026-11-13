@@ -1,7 +1,7 @@
 import Foundation
 
 /// Internal dependency injection container assembling and wiring SwiftKit components.
-internal final class SDKDependencyContainer: @unchecked Sendable {
+internal final class SDKDependencyContainer: Sendable {
     internal let configuration: SwiftKitConfiguration
     internal let logger: LoggerProtocol
 
@@ -12,8 +12,9 @@ internal final class SDKDependencyContainer: @unchecked Sendable {
         let logConfig = LogConfiguration(
             subsystem: configuration.subsystem,
             category: configuration.category,
-            minimumLevel: configuration.isLoggingEnabled ? configuration.minimumLogLevel : .none,
-            isMaskingEnabled: configuration.isMaskingEnabled
+            minimumLevel: configuration.minimumLogLevel,
+            isMaskingEnabled: configuration.isMaskingEnabled,
+            isEnabled: configuration.isLoggingEnabled
         )
         self.logger = OSLogger(configuration: logConfig)
     }

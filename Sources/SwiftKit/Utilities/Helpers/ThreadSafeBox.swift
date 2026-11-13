@@ -1,6 +1,10 @@
 import Foundation
 
 /// A lightweight thread-safe synchronization container for managing mutable state safely across concurrent threads.
+///
+/// - Note: This type is intentionally marked `@unchecked Sendable`. All access to the mutable
+///   `value` is serialized through `NSLock`, so the conformance is safe even when `Value` itself
+///   is not `Sendable`.
 public final class ThreadSafeBox<Value>: @unchecked Sendable {
     private var value: Value
     private let lock = NSLock()
