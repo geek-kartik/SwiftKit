@@ -45,4 +45,28 @@ public enum SecureStorageError: Error, LocalizedError, Equatable, Sendable {
             return "The value stored for key '\(key)' is not valid for the requested representation."
         }
     }
+
+    /// Redacted diagnostic description that never includes account keys.
+    internal var logDescription: String {
+        switch self {
+        case .invalidKey:
+            return "invalidKey"
+        case .itemNotFound:
+            return "itemNotFound"
+        case .writeFailed(let status):
+            return "writeFailed(status: \(status))"
+        case .updateFailed(let status):
+            return "updateFailed(status: \(status))"
+        case .readFailed(let status):
+            return "readFailed(status: \(status))"
+        case .deleteFailed(let status):
+            return "deleteFailed(status: \(status))"
+        case .encodingFailed:
+            return "encodingFailed"
+        case .decodingFailed:
+            return "decodingFailed"
+        case .invalidData:
+            return "invalidData"
+        }
+    }
 }

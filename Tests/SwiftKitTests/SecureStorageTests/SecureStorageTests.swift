@@ -9,16 +9,23 @@ private struct TestProfile: Codable, Equatable {
 
 final class SecureStorageTests: XCTestCase {
     private var client: InMemoryKeychainClient!
+    private var logger: MockLogger!
     private var storage: KeychainStorage!
 
     override func setUp() {
         super.setUp()
         client = InMemoryKeychainClient()
-        storage = KeychainStorage(service: "com.swiftkit.tests.secure-storage", client: client)
+        logger = MockLogger()
+        storage = KeychainStorage(
+            service: "com.swiftkit.tests.secure-storage",
+            client: client,
+            logger: logger
+        )
     }
 
     override func tearDown() {
         storage = nil
+        logger = nil
         client = nil
         super.tearDown()
     }
@@ -86,7 +93,11 @@ final class SecureStorageTests: XCTestCase {
     }
 
     func testRemoveAllOnlyDeletesMatchingService() throws {
-        let otherStorage = KeychainStorage(service: "com.swiftkit.tests.other", client: client)
+        let otherStorage = KeychainStorage(
+            service: "com.swiftkit.tests.other",
+            client: client,
+            logger: logger
+        )
 
         try storage.setString("first", forKey: "one")
         try otherStorage.setString("second", forKey: "two")
@@ -126,6 +137,34 @@ final class SecureStorageTests: XCTestCase {
         XCTAssertThrowsError(try storage.setString("value", forKey: "token")) { error in
             XCTAssertEqual(error as? SecureStorageError, .writeFailed(status: -2))
         }
+    }
+
+    func testWriteFailureIsLoggedWithoutKey() {
+        client.failOnWrite = .writeFailed(status: -2)
+
+        XCTAssertThrowsError(try storage.setString("value", forKey: "sensitive-account-key"))
+
+        XCTAssertTrue(logger.recordedLevels.contains(.error))
+        XCTAssertTrue(logger.recordedEntries.contains { $0.message.contains("writeFailed") })
+        XCTAssertFalse(logger.recordedEntries.contains { $0.message.contains("sensitive-account-key") })
+    }
+
+    func testReadFailureIsLogged() {
+        client.failOnRead = .readFailed(status: -1)
+
+        XCTAssertThrowsError(try storage.data(forKey: "token"))
+
+        XCTAssertTrue(logger.recordedLevels.contains(.error))
+        XCTAssertTrue(logger.recordedEntries.contains { $0.message.contains("readFailed") })
+    }
+
+    func testContainsFailureIsLoggedAndReturnsFalse() {
+        client.failOnRead = .readFailed(status: -1)
+
+        XCTAssertFalse(storage.contains("token"))
+
+        XCTAssertTrue(logger.recordedLevels.contains(.error))
+        XCTAssertTrue(logger.recordedEntries.contains { $0.message.contains("contains check failed") })
     }
 
     func testDeleteFailurePropagates() throws {
@@ -168,7 +207,7 @@ final class SecureStorageTests: XCTestCase {
         }
 
         let service = "com.swiftkit.tests.keychain.\(UUID().uuidString)"
-        let keychainStorage = KeychainStorage(service: service)
+        let keychainStorage = KeychainStorage(service: service, logger: MockLogger())
 
         do {
             try keychainStorage.setString("value", forKey: "smoke")

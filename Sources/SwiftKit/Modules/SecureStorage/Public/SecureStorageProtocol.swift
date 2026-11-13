@@ -69,7 +69,7 @@ public extension SecureStorageProtocol {
     ///   - key: A non-empty account key used to identify the value.
     /// - Throws: A storage failure.
     func setString(_ value: String, forKey key: String) throws {
-        try setData(Data(value.utf8), forKey: key)
+        try setData(value.utf8Data, forKey: key)
     }
 
     /// Retrieves a UTF-8 string for the supplied key.
@@ -78,7 +78,7 @@ public extension SecureStorageProtocol {
     /// - Throws: `SecureStorageError.itemNotFound` when no value exists, or a read failure.
     func string(forKey key: String) throws -> String {
         let storedData = try data(forKey: key)
-        guard let value = String(data: storedData, encoding: .utf8) else {
+        guard let value = storedData.utf8String else {
             throw SecureStorageError.invalidData(key: key)
         }
         return value

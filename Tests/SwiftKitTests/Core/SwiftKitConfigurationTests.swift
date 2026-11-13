@@ -28,6 +28,23 @@ final class SwiftKitConfigurationTests: XCTestCase {
         XCTAssertEqual(defaultConfig.minimumLogLevel, .debug)
     }
 
+    func testDefaultKeychainConfiguration() {
+        let config = SwiftKitConfiguration()
+
+        XCTAssertFalse(config.keychainService.isEmpty)
+        XCTAssertEqual(config.keychainAccessibility, .afterFirstUnlockThisDeviceOnly)
+    }
+
+    func testCustomKeychainConfiguration() {
+        let config = SwiftKitConfiguration(
+            keychainService: "com.example.app.storage",
+            keychainAccessibility: .whenUnlockedThisDeviceOnly
+        )
+
+        XCTAssertEqual(config.keychainService, "com.example.app.storage")
+        XCTAssertEqual(config.keychainAccessibility, .whenUnlockedThisDeviceOnly)
+    }
+
     func testEmptySubsystemThrows() {
         let config = SwiftKitConfiguration(
             environment: .development,
@@ -53,6 +70,20 @@ final class SwiftKitConfigurationTests: XCTestCase {
                 return XCTFail("Expected invalidConfiguration error, got \(error)")
             }
             XCTAssertTrue(reason.contains("category"))
+        }
+    }
+
+    func testEmptyKeychainServiceThrows() {
+        let config = SwiftKitConfiguration(
+            environment: .development,
+            keychainService: "   "
+        )
+
+        XCTAssertThrowsError(try config.validate()) { error in
+            guard case SDKError.invalidConfiguration(let reason) = error else {
+                return XCTFail("Expected invalidConfiguration error, got \(error)")
+            }
+            XCTAssertTrue(reason.contains("Keychain service"))
         }
     }
 }
