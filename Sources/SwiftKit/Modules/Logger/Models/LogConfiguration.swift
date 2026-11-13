@@ -14,15 +14,27 @@ public struct LogConfiguration: Sendable {
     /// Governs whether sensitive patterns (Bearer tokens, emails, keys) are redacted.
     public let isMaskingEnabled: Bool
 
+    /// Master switch controlling whether any log entry is dispatched.
+    public let isEnabled: Bool
+
+    /// Creates a logging configuration.
+    /// - Parameters:
+    ///   - subsystem: Apple OSLog subsystem identifier. Defaults to `"com.swiftkit.sdk"`.
+    ///   - category: Apple OSLog category. Defaults to `"SwiftKit"`.
+    ///   - minimumLevel: Minimum severity required for dispatch. Defaults to `.debug`.
+    ///   - isMaskingEnabled: Redacts sensitive patterns before dispatch. Defaults to `true`.
+    ///   - isEnabled: Master switch for logging. Defaults to `true`.
     public init(
         subsystem: String = "com.swiftkit.sdk",
         category: String = "SwiftKit",
         minimumLevel: LogLevel = .debug,
-        isMaskingEnabled: Bool = true
+        isMaskingEnabled: Bool = true,
+        isEnabled: Bool = true
     ) {
         self.subsystem = subsystem
         self.category = category
         self.minimumLevel = minimumLevel
         self.isMaskingEnabled = isMaskingEnabled
+        self.isEnabled = isEnabled
     }
 }
