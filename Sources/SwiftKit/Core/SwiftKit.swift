@@ -17,6 +17,11 @@ public final class SwiftKit: Sendable {
         container.logger
     }
 
+    /// Access to Keychain-backed secure storage.
+    public var secureStorage: SecureStorageProtocol {
+        container.secureStorage
+    }
+
     // MARK: - Initialization Lifecycle
 
     private init(container: SDKDependencyContainer) {
