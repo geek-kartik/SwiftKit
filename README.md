@@ -13,7 +13,7 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 | **Secure Storage** | Implemented | Keychain-based credential & token storage | `Security` | `SecureStorageProtocol` |
 | **Networking** | Planned | Asynchronous HTTP client with JSON mapping | `Foundation` (`URLSession`) | `NetworkClientProtocol` |
 | **Device Info** | Implemented | Device model, app/OS versions, and build environment | `Foundation` | `DeviceInfoProtocol` |
-| **Connectivity** | Planned | Real-time network reachability monitoring | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
+| **Connectivity** | Implemented | System network-path monitoring and change notifications | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
 | **Session** | Planned | User session state and expiration checking | `Foundation` | `SessionManagerProtocol` |
 
 ---
@@ -96,6 +96,10 @@ let isDebugBuild = deviceInfo.isDebugBuild
 if deviceInfo.isUpdateRequired(minimumVersion: "2.5.0") {
     // Prompt the user to update.
 }
+
+// Connectivity Monitoring
+let connectivity = SwiftKit.shared.connectivity
+connectivity.start()
 ```
 
 ### 3. Module Documentation
@@ -103,7 +107,8 @@ if deviceInfo.isUpdateRequired(minimumVersion: "2.5.0") {
 - [Logger Module](Sources/SwiftKit/Modules/Logger/README.md)
 - [Secure Storage Module](Sources/SwiftKit/Modules/SecureStorage/README.md)
 - [Device Info Module](Sources/SwiftKit/Modules/DeviceInfo/README.md)
+- [Connectivity Module](Sources/SwiftKit/Modules/Connectivity/README.md)
 
-Networking, Connectivity, and Session are planned modules and will be documented when implemented.
+Networking and Session are planned modules and will be documented when implemented.
 
 ---
