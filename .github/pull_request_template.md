@@ -1,10 +1,6 @@
 ## Summary of Changes
-- Module / Area: <!-- [SecureStorage | Networking | DeviceInfo | Connectivity | Session | Logger | Permissions | Core] -->
+- Module / Area: <!-- [SecureStorage | Networking | DeviceInfo | Connectivity | Session | Logger | Core] -->
 - Description: <!-- Briefly describe what was added, modified, or fixed -->
-
-## Related Module & Developer
-- Module Owner: <!-- Developer 1 | Developer 2 | Developer 3 | SDK Integrator -->
-- Issue / Task: <!-- Link to tracker or ticket -->
 
 ## Checklist
 - [ ] Code follows SwiftKit architectural guidelines (no external dependencies, clean separation of public/internal).
