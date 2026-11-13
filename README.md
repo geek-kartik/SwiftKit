@@ -107,7 +107,8 @@ connectivity.start()
 - [Logger Module](Sources/SwiftKit/Modules/Logger/README.md)
 - [Secure Storage Module](Sources/SwiftKit/Modules/SecureStorage/README.md)
 - [Device Info Module](Sources/SwiftKit/Modules/DeviceInfo/README.md)
+- [Connectivity Module](Sources/SwiftKit/Modules/Connectivity/README.md)
 
-Networking, Connectivity, and Session are planned modules and will be documented when implemented.
+Networking and Session are planned modules and will be documented when implemented.
 
 ---
