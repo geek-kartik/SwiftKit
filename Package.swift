@@ -20,13 +20,13 @@ let package = Package(
         // No third-party dependencies. SwiftKit relies solely on native Apple frameworks.
     ],
     targets: [
-        // Main SDK target focused on the Logger utility module
         .target(
             name: "SwiftKit",
             dependencies: [],
             path: "Sources/SwiftKit",
             exclude: [
-                "Modules/Logger/README.md"
+                "Modules/Logger/README.md",
+                "Modules/Connectivity/README.md"
             ]
         ),
         // Comprehensive test suite

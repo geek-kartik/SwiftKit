@@ -17,6 +17,11 @@ public final class SwiftKit: Sendable {
         container.logger
     }
 
+    /// Access to system network-path connectivity monitoring.
+    public var connectivity: ConnectivityMonitorProtocol {
+        container.connectivity
+    }
+
     // MARK: - Initialization Lifecycle
 
     private init(container: SDKDependencyContainer) {

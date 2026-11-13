@@ -4,6 +4,7 @@ import Foundation
 internal final class SDKDependencyContainer: Sendable {
     internal let configuration: SwiftKitConfiguration
     internal let logger: LoggerProtocol
+    internal let connectivity: ConnectivityMonitorProtocol
 
     /// Internal assembly based on validated configuration.
     internal init(configuration: SwiftKitConfiguration) {
@@ -16,15 +17,19 @@ internal final class SDKDependencyContainer: Sendable {
             isMaskingEnabled: configuration.isMaskingEnabled,
             isEnabled: configuration.isLoggingEnabled
         )
-        self.logger = OSLogger(configuration: logConfig)
+        let logger = OSLogger(configuration: logConfig)
+        self.logger = logger
+        self.connectivity = NetworkConnectivityMonitor(logger: logger)
     }
 
     /// Custom initializer permitting dependency injection for unit testing.
     internal init(
         configuration: SwiftKitConfiguration,
-        logger: LoggerProtocol
+        logger: LoggerProtocol,
+        connectivityMonitor: ConnectivityMonitorProtocol? = nil
     ) {
         self.configuration = configuration
         self.logger = logger
+        self.connectivity = connectivityMonitor ?? NetworkConnectivityMonitor(logger: logger)
     }
 }

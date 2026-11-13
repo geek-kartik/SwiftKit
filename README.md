@@ -11,7 +11,7 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 | **Secure Storage** | Keychain-based credential & token storage | `Security` | `SecureStorageProtocol` |
 | **Networking** | Asynchronous HTTP client with JSON mapping | `Foundation` (`URLSession`) | `NetworkClientProtocol` |
 | **Device Info** | Safe hardware, OS, and app version metrics | `Foundation`, `UIKit` | `DeviceInfoProtocol` |
-| **Connectivity** | Real-time network reachability monitoring | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
+| **Connectivity** | System network-path monitoring and change notifications | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
 | **Session** | User session state and expiration checking | `Foundation` | `SessionManagerProtocol` |
 | **Logger** | Unified logging with automatic data masking | `OSLog` (`os.Logger`) | `LoggerProtocol` |
 | **Core** | Centralized SDK initialization & DI container | `Foundation` | `SwiftKit` |
@@ -89,7 +89,24 @@ print("Device: \(device.deviceModel), Version: \(device.appVersion)")
 
 // Connectivity Monitoring
 let connectivity = SwiftKit.shared.connectivity
-connectivity.startMonitoring()
-print("Is Online: \(connectivity.isConnected)")
+let observation = connectivity.addObserver { status in
+    switch status {
+    case .unknown:
+        // Initial state before the first network-path update. Treat as pending, not offline.
+        break
+    case .connected:
+        // A satisfied system network path is available.
+        break
+    case .disconnected:
+        // No satisfied system network path is available.
+        break
+    }
+}
+
+connectivity.start()
+
+// Later, when updates are no longer needed:
+connectivity.removeObserver(observation)
+connectivity.stop()
 
 ---
