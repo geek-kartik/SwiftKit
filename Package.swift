@@ -27,6 +27,7 @@ let package = Package(
             exclude: [
                 "Modules/Logger/README.md",
                 "Modules/SecureStorage/README.md",
+                "Modules/DeviceInfo/README.md",
                 "Modules/Connectivity/README.md"
             ]
         ),

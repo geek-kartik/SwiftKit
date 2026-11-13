@@ -27,6 +27,11 @@ public final class SwiftKit: Sendable {
         container.secureStorage
     }
 
+    /// Access to device model and version information.
+    public var deviceInfo: DeviceInfoProtocol {
+        container.deviceInfo
+    }
+
     // MARK: - Initialization Lifecycle
 
     private init(container: SDKDependencyContainer) {
