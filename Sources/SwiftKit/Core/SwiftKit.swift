@@ -17,6 +17,11 @@ public final class SwiftKit: Sendable {
         container.logger
     }
 
+    /// Access to system network-path connectivity monitoring.
+    public var connectivity: ConnectivityMonitorProtocol {
+        container.connectivity
+    }
+
     /// Access to Keychain-backed secure storage.
     public var secureStorage: SecureStorageProtocol {
         container.secureStorage
