@@ -36,7 +36,7 @@ internal final class SDKDependencyContainer: Sendable {
         logger: LoggerProtocol,
         secureStorage: SecureStorageProtocol? = nil,
         deviceInfo: DeviceInfoProtocol? = nil,
-        connectivityMonitor: ConnectivityMonitorProtocol? = nil,
+        connectivityMonitor: ConnectivityMonitorProtocol? = nil
     ) {
         self.configuration = configuration
         self.logger = logger

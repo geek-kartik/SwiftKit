@@ -30,17 +30,21 @@ internal struct NWPathMonitorEngineFactory: NetworkPathMonitorEngineFactory {
 /// Concrete engine backed by Apple's `NWPathMonitor`.
 ///
 /// - Note: This type is intentionally `@unchecked Sendable` because `NWPathMonitor` is an Apple type
-///   without a `Sendable` conformance. The wrapped monitor is immutable, `pathUpdateHandler` is
-///   assigned once before `start(queue:)`, and all lifecycle calls are serialized by the owning
-///   ``NetworkConnectivityMonitor``.
+///   without a `Sendable` conformance. `NWPathMonitor` is not thread-safe when lifecycle calls race,
+///   so `pathUpdateHandler` assignment, `start(queue:)`, and `cancel()` are serialized through an
+///   internal `NSLock`. Callers may therefore invoke these methods from any thread.
 internal final class NWPathMonitorEngine: NetworkPathMonitorEngine, @unchecked Sendable {
     private let monitor: NWPathMonitor
+    private let lock = NSLock()
 
     internal init(monitor: NWPathMonitor = NWPathMonitor()) {
         self.monitor = monitor
     }
 
     internal func start(queue: DispatchQueue, onUpdate: @escaping @Sendable (ConnectivityStatus) -> Void) {
+        lock.lock()
+        defer { lock.unlock() }
+
         monitor.pathUpdateHandler = { path in
             onUpdate(Self.map(path.status))
         }
@@ -48,6 +52,9 @@ internal final class NWPathMonitorEngine: NetworkPathMonitorEngine, @unchecked S
     }
 
     internal func cancel() {
+        lock.lock()
+        defer { lock.unlock() }
+
         monitor.cancel()
     }
 
