@@ -36,5 +36,46 @@ final class SDKIntegrationTests: XCTestCase {
         sdk.logger.info("Session started with token: Bearer confidential_auth_token_999")
         sdk.logger.warning("Simulated resource latency warning")
         sdk.logger.error("Simulated recoverable failure")
+
+        // Verify Session Manager wiring (no Keychain access on the real container)
+        XCTAssertTrue(sdk.session is SessionManager)
+        XCTAssertFalse(sdk.session.isAuthenticated)
+    }
+
+    func testEndToEndSessionManagerIntegrationWithInMemoryStorage() throws {
+        let config = SwiftKitConfiguration(
+            environment: .development,
+            subsystem: "com.swiftkit.integration.session",
+            category: "SDKTests"
+        )
+        let logger = MockLogger()
+        let secureStorage = KeychainStorage(
+            service: "com.swiftkit.integration.session",
+            accessibility: .afterFirstUnlockThisDeviceOnly,
+            client: InMemoryKeychainClient(),
+            logger: logger
+        )
+        let container = SDKDependencyContainer(
+            configuration: config,
+            logger: logger,
+            secureStorage: secureStorage
+        )
+        SwiftKit.initializeForTesting(container: container)
+
+        let sdk = SwiftKit.shared
+        let session = Session(
+            accessToken: "integration-access-token",
+            refreshToken: "integration-refresh-token",
+            expiresAt: Date().addingTimeInterval(3600),
+            userID: "integration-user"
+        )
+
+        try sdk.session.startSession(session)
+
+        XCTAssertTrue(sdk.session.isAuthenticated)
+        XCTAssertEqual(sdk.session.currentSession, session)
+
+        try sdk.session.logout()
+        XCTAssertFalse(sdk.session.isAuthenticated)
     }
 }
