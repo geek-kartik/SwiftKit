@@ -8,6 +8,13 @@ public enum SessionState: Equatable, Sendable {
     /// An authenticated, non-expired session is active.
     case authenticated(Session)
 
+    /// A session was previously active but has since expired.
+    ///
+    /// The expired credentials are retained so the session can be refreshed through
+    /// ``SessionManagerProtocol/refreshSession()``. Use ``session`` (which returns `nil`) or
+    /// ``SessionManagerProtocol/currentSession`` to read the active session.
+    case expired
+
     /// Indicates whether an authenticated session is currently active.
     public var isAuthenticated: Bool {
         if case .authenticated = self {

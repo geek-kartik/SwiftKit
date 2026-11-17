@@ -97,7 +97,7 @@ final class SessionManagerTests: XCTestCase {
         XCTAssertEqual(restoredManager.currentSession, session)
     }
 
-    func testRestoreClearsExpiredSessionAndEmitsExpired() throws {
+    func testRestoreMarksExpiredSessionAndEmitsExpired() throws {
         let clock = TestClock(baseDate)
         let (manager, logger, storage, _) = makeManager(clock: clock)
         try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))
@@ -117,8 +117,9 @@ final class SessionManagerTests: XCTestCase {
 
         XCTAssertNil(restored)
         XCTAssertFalse(restoredManager.isAuthenticated)
+        XCTAssertEqual(restoredManager.state, .expired)
         XCTAssertEqual(events.current, [.expired])
-        XCTAssertFalse(storage.contains(storageKey))
+        XCTAssertTrue(storage.contains(storageKey))
     }
 
     func testRestoreThrowsDecodingFailedForCorruptData() throws {
@@ -130,7 +131,7 @@ final class SessionManagerTests: XCTestCase {
         }
     }
 
-    // MARK: - Refresh Session
+    // MARK: - Refresh Session (synchronous)
 
     func testRefreshPreservesUserIDAndEmitsRefreshed() throws {
         let (manager, _, storage, _) = makeManager()
@@ -178,6 +179,126 @@ final class SessionManagerTests: XCTestCase {
         }
     }
 
+    // MARK: - Refresh Session (asynchronous)
+
+    func testAsyncRefreshRenewsSessionAndEmitsRefreshed() async throws {
+        let renewed = SessionTokenRefresh(
+            accessToken: "async-access",
+            refreshToken: "async-refresh",
+            expiresAt: baseDate.addingTimeInterval(7200)
+        )
+        let handler = MockSessionTokenRefreshHandler(behavior: .success(renewed))
+        let (manager, _, storage, _) = makeManager(refreshHandler: handler)
+        try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600), userID: "user-1"))
+
+        let events = ThreadSafeBox<[SessionEvent]>([])
+        manager.addObserver { event in events.mutate { $0.append(event) } }
+
+        let refreshed = try await manager.refreshSession()
+
+        XCTAssertEqual(refreshed.accessToken, "async-access")
+        XCTAssertEqual(refreshed.refreshToken, "async-refresh")
+        XCTAssertEqual(refreshed.userID, "user-1")
+        XCTAssertEqual(manager.state, .authenticated(refreshed))
+        XCTAssertEqual(events.current, [.refreshed(refreshed)])
+        XCTAssertEqual(try storage.codable(Session.self, forKey: storageKey).accessToken, "async-access")
+    }
+
+    func testAsyncRefreshFromExpiredSessionSucceeds() async throws {
+        let clock = TestClock(baseDate)
+        let renewed = SessionTokenRefresh(accessToken: "renewed", expiresAt: baseDate.addingTimeInterval(10800))
+        let handler = MockSessionTokenRefreshHandler(behavior: .success(renewed))
+        let (manager, _, _, _) = makeManager(clock: clock, refreshHandler: handler)
+        try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))
+
+        clock.advance(by: 7200)
+        manager.validateExpiry()
+        XCTAssertEqual(manager.state, .expired)
+
+        let refreshed = try await manager.refreshSession()
+
+        XCTAssertEqual(refreshed.accessToken, "renewed")
+        XCTAssertEqual(manager.state, .authenticated(refreshed))
+    }
+
+    func testAsyncRefreshWithoutSessionThrowsNoActiveSession() async {
+        let handler = MockSessionTokenRefreshHandler(
+            behavior: .success(SessionTokenRefresh(accessToken: "x", expiresAt: baseDate.addingTimeInterval(3600)))
+        )
+        let (manager, _, _, _) = makeManager(refreshHandler: handler)
+
+        await assertRefreshThrows(manager, expected: .noActiveSession)
+    }
+
+    func testAsyncRefreshWithoutRefreshTokenThrowsMissingRefreshToken() async throws {
+        let handler = MockSessionTokenRefreshHandler(
+            behavior: .success(SessionTokenRefresh(accessToken: "x", expiresAt: baseDate.addingTimeInterval(3600)))
+        )
+        let (manager, _, _, _) = makeManager(refreshHandler: handler)
+        try manager.startSession(
+            Session(accessToken: "access", refreshToken: nil, expiresAt: baseDate.addingTimeInterval(3600))
+        )
+
+        await assertRefreshThrows(manager, expected: .missingRefreshToken)
+    }
+
+    func testAsyncRefreshWithoutHandlerThrowsHandlerUnavailable() async throws {
+        let (manager, _, _, _) = makeManager()
+        try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))
+
+        await assertRefreshThrows(manager, expected: .refreshHandlerUnavailable)
+    }
+
+    func testAsyncRefreshOfflineThrowsOffline() async throws {
+        let connectivity = MockConnectivityMonitor(status: .disconnected)
+        let handler = MockSessionTokenRefreshHandler(
+            behavior: .success(SessionTokenRefresh(accessToken: "x", expiresAt: baseDate.addingTimeInterval(3600)))
+        )
+        let (manager, _, _, _) = makeManager(connectivity: connectivity, refreshHandler: handler)
+        try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))
+
+        await assertRefreshThrows(manager, expected: .offline)
+    }
+
+    func testAsyncRefreshHandlerFailureThrowsRefreshFailed() async throws {
+        let handler = MockSessionTokenRefreshHandler(behavior: .failure(URLError(.badServerResponse)))
+        let (manager, _, _, _) = makeManager(refreshHandler: handler)
+        try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))
+
+        await assertRefreshThrows(manager, expected: .refreshFailed)
+    }
+
+    func testAsyncRefreshCancellationThrowsRefreshCancelled() async throws {
+        let handler = MockSessionTokenRefreshHandler(behavior: .failure(CancellationError()))
+        let (manager, _, _, _) = makeManager(refreshHandler: handler)
+        try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))
+
+        await assertRefreshThrows(manager, expected: .refreshCancelled)
+    }
+
+    func testLogoutCancelsInFlightRefresh() async throws {
+        let handler = ControllableRefreshHandler()
+        let (manager, _, storage, _) = makeManager(refreshHandler: handler)
+        try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))
+
+        let refresh = Task { try await manager.refreshSession() }
+        while !handler.hasPending { await Task.yield() }
+
+        try manager.logout()
+        handler.resume(
+            returning: SessionTokenRefresh(accessToken: "late", expiresAt: baseDate.addingTimeInterval(7200))
+        )
+
+        do {
+            _ = try await refresh.value
+            XCTFail("Expected refreshCancelled after logout.")
+        } catch {
+            XCTAssertEqual(error as? SessionError, .refreshCancelled)
+        }
+        XCTAssertFalse(manager.isAuthenticated)
+        XCTAssertFalse(storage.contains(storageKey))
+    }
+
     // MARK: - Logout
 
     func testLogoutClearsStorageAndEmitsLoggedOut() throws {
@@ -216,7 +337,7 @@ final class SessionManagerTests: XCTestCase {
 
     // MARK: - Expiry Validation
 
-    func testValidateExpiryClearsExpiredSession() throws {
+    func testValidateExpiryMarksSessionExpired() throws {
         let clock = TestClock(baseDate)
         let (manager, _, storage, _) = makeManager(clock: clock)
         try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))
@@ -228,7 +349,9 @@ final class SessionManagerTests: XCTestCase {
         manager.validateExpiry()
 
         XCTAssertFalse(manager.isAuthenticated)
-        XCTAssertFalse(storage.contains(storageKey))
+        XCTAssertNil(manager.currentSession)
+        XCTAssertEqual(manager.state, .expired)
+        XCTAssertTrue(storage.contains(storageKey))
         XCTAssertEqual(events.current, [.expired])
     }
 
@@ -258,6 +381,30 @@ final class SessionManagerTests: XCTestCase {
         manager.validateExpiry()
 
         XCTAssertEqual(events.current, [.expired])
+    }
+
+    // MARK: - Duplicate State Suppression
+
+    func testRepeatedLogoutEmitsSingleEvent() throws {
+        let (manager, _, _, _) = makeManager()
+        try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))
+
+        let events = ThreadSafeBox<[SessionEvent]>([])
+        manager.addObserver { event in events.mutate { $0.append(event) } }
+
+        try manager.logout()
+        try manager.logout()
+
+        XCTAssertEqual(events.current, [.loggedOut])
+    }
+
+    func testRestoringNothingAfterLogoutEmitsNoEvent() throws {
+        let (manager, _, _, _) = makeManager()
+        let events = ThreadSafeBox<[SessionEvent]>([])
+        manager.addObserver { event in events.mutate { $0.append(event) } }
+
+        XCTAssertNil(try manager.restoreSession())
+        XCTAssertTrue(events.current.isEmpty)
     }
 
     // MARK: - Unauthorized
@@ -374,8 +521,24 @@ final class SessionManagerTests: XCTestCase {
 
     // MARK: - Helpers
 
+    private func assertRefreshThrows(
+        _ manager: SessionManager,
+        expected: SessionError,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        do {
+            _ = try await manager.refreshSession()
+            XCTFail("Expected \(expected) to be thrown.", file: file, line: line)
+        } catch {
+            XCTAssertEqual(error as? SessionError, expected, file: file, line: line)
+        }
+    }
+
     private func makeManager(
-        clock: TestClock? = nil
+        clock: TestClock? = nil,
+        connectivity: ConnectivityMonitorProtocol? = nil,
+        refreshHandler: SessionTokenRefreshHandler? = nil
     ) -> (SessionManager, MockLogger, KeychainStorage, InMemoryKeychainClient) {
         let resolvedClock = clock ?? TestClock(baseDate)
         let logger = MockLogger()
@@ -389,6 +552,8 @@ final class SessionManagerTests: XCTestCase {
         let manager = SessionManager(
             secureStorage: storage,
             logger: logger,
+            connectivity: connectivity,
+            refreshHandler: refreshHandler,
             storageKey: storageKey,
             now: { resolvedClock.now }
         )
@@ -423,5 +588,80 @@ private final class TestClock: @unchecked Sendable {
 
     internal func advance(by interval: TimeInterval) {
         box.mutate { $0 = $0.addingTimeInterval(interval) }
+    }
+}
+
+/// Connectivity monitor stub returning a fixed status.
+private final class MockConnectivityMonitor: ConnectivityMonitorProtocol, @unchecked Sendable {
+    private let box: ThreadSafeBox<ConnectivityStatus>
+
+    internal init(status: ConnectivityStatus = .unknown) {
+        self.box = ThreadSafeBox(status)
+    }
+
+    internal var currentStatus: ConnectivityStatus {
+        box.current
+    }
+
+    internal var isMonitoring: Bool {
+        false
+    }
+
+    internal func start() {}
+
+    internal func stop() {}
+
+    @discardableResult
+    internal func addObserver(
+        _ observer: @escaping @Sendable (ConnectivityStatus) -> Void
+    ) -> ConnectivityObservationToken {
+        ConnectivityObservationToken()
+    }
+
+    internal func removeObserver(_ token: ConnectivityObservationToken) {}
+}
+
+/// Token-refresh handler stub with a configurable behavior.
+private final class MockSessionTokenRefreshHandler: SessionTokenRefreshHandler, @unchecked Sendable {
+    internal enum Behavior: Sendable {
+        case success(SessionTokenRefresh)
+        case failure(Error)
+    }
+
+    private let box: ThreadSafeBox<Behavior>
+
+    internal init(behavior: Behavior) {
+        self.box = ThreadSafeBox(behavior)
+    }
+
+    internal func refresh(using refreshToken: String) async throws -> SessionTokenRefresh {
+        switch box.current {
+        case .success(let value):
+            return value
+        case .failure(let error):
+            throw error
+        }
+    }
+}
+
+/// Token-refresh handler that suspends until the test resumes it.
+private final class ControllableRefreshHandler: SessionTokenRefreshHandler, @unchecked Sendable {
+    private let box = ThreadSafeBox<CheckedContinuation<SessionTokenRefresh, Error>?>(nil)
+
+    internal var hasPending: Bool {
+        box.current != nil
+    }
+
+    internal func refresh(using refreshToken: String) async throws -> SessionTokenRefresh {
+        try await withCheckedThrowingContinuation { continuation in
+            box.write(continuation)
+        }
+    }
+
+    internal func resume(returning value: SessionTokenRefresh) {
+        box.mutate { continuation in
+            continuation?.resume(returning: value)
+            continuation = nil
+        }
     }
 }

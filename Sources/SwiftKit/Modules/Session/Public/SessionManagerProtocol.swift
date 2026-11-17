@@ -13,13 +13,15 @@ public protocol SessionManagerProtocol: Sendable {
     /// The currently active session, or `nil` when unauthenticated or expired.
     ///
     /// This value reflects the in-memory session and does not perform storage cleanup. Call
-    /// ``validateExpiry()`` to discard an expired session.
+    /// ``validateExpiry()`` to transition an expired session to ``SessionState/expired``.
     var currentSession: Session? { get }
 
     /// Whether an authenticated, non-expired session is currently active.
     var isAuthenticated: Bool { get }
 
     /// The current authentication state.
+    ///
+    /// Reports ``SessionState/expired`` when a stored session has expired but not yet been cleared.
     var state: SessionState { get }
 
     /// Establishes a new session, persisting it to secure storage.
@@ -49,14 +51,29 @@ public protocol SessionManagerProtocol: Sendable {
     ///   ``SessionError/storageFailure`` when persistence fails.
     func refreshSession(accessToken: String, refreshToken: String?, expiresAt: Date) throws
 
+    /// Renews the active or expired session using the configured ``SessionTokenRefreshHandler``.
+    ///
+    /// The stored refresh token is exchanged for new credentials, and the existing user identifier is
+    /// preserved across the refresh. Refresh is skipped when the device is offline.
+    /// - Returns: The refreshed session.
+    /// - Throws: ``SessionError/noActiveSession`` when no session is stored,
+    ///   ``SessionError/missingRefreshToken`` when the session has no refresh token,
+    ///   ``SessionError/refreshHandlerUnavailable`` when no handler is configured,
+    ///   ``SessionError/offline`` when the device is disconnected, ``SessionError/refreshCancelled``
+    ///   when the refresh was cancelled, ``SessionError/refreshFailed`` when the handler fails, or
+    ///   ``SessionError/storageFailure`` when persistence fails.
+    func refreshSession() async throws -> Session
+
     /// Performs a secure logout, clearing the session from memory and secure storage.
     /// - Throws: ``SessionError/storageFailure`` when the stored session cannot be cleared.
     func logout() throws
 
-    /// Discards the active session when it has expired and emits an ``SessionEvent/expired`` event.
+    /// Transitions an expired session to ``SessionState/expired`` and emits a ``SessionEvent/expired`` event.
     ///
-    /// Intended to be invoked on application lifecycle events such as returning to the foreground.
-    /// Calling this method when no session is active or when the session is still valid has no effect.
+    /// The expired credentials are retained so the session may later be refreshed through
+    /// ``refreshSession()``. Intended to be invoked on application lifecycle events such as returning to
+    /// the foreground. Calling this method when no session is active or when the session is still valid
+    /// has no effect.
     func validateExpiry()
 
     /// Clears the active session in response to an HTTP 401 unauthorized response.
