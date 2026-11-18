@@ -1,0 +1,47 @@
+name: SampleApp
+options:
+  bundleIdPrefix: com.swiftkit
+  deploymentTarget:
+    iOS: "15.0"
+packages:
+  SwiftKit:
+    path: ..
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGN_IDENTITY: ""
+targets:
+  SampleApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - Sources
+    settings:
+      base:
+        INFOPLIST_FILE: Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.swiftkit.sampleapp
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_IDENTITY: ""
+        ENABLE_TESTABILITY: YES
+    dependencies:
+      - package: SwiftKit
+  SampleAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - Tests/SampleAppTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.swiftkit.sampleapp.tests
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_IDENTITY: ""
+    dependencies:
+      - target: SampleApp
+      - package: SwiftKit
