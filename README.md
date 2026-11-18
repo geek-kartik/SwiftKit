@@ -14,7 +14,7 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 | **Networking** | Planned | Asynchronous HTTP client with JSON mapping | `Foundation` (`URLSession`) | `NetworkClientProtocol` |
 | **Device Info** | Implemented | Device model, app/OS versions, and build environment | `Foundation` | `DeviceInfoProtocol` |
 | **Connectivity** | Implemented | System network-path monitoring and change notifications | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
-| **Session** | Planned | User session state and expiration checking | `Foundation` | `SessionManagerProtocol` |
+| **Session** | Implemented | User session state, token lifecycle, and expiration checking | `Foundation` | `SessionManagerProtocol` |
 
 ---
 
@@ -100,6 +100,20 @@ if deviceInfo.isUpdateRequired(minimumVersion: "2.5.0") {
 // Connectivity Monitoring
 let connectivity = SwiftKit.shared.connectivity
 connectivity.start()
+
+// User Session Management
+let session = SwiftKit.shared.session
+let newSession = Session(
+    accessToken: "jwt_access_token",
+    refreshToken: "jwt_refresh_token",
+    expiresAt: Date().addingTimeInterval(3600),
+    userID: "user-123"
+)
+try session.startSession(newSession)
+
+// Restore a persisted session at launch and clear it on logout
+try session.restoreSession()
+try session.logout()
 ```
 
 ### 3. Module Documentation
@@ -108,7 +122,8 @@ connectivity.start()
 - [Secure Storage Module](Sources/SwiftKit/Modules/SecureStorage/README.md)
 - [Device Info Module](Sources/SwiftKit/Modules/DeviceInfo/README.md)
 - [Connectivity Module](Sources/SwiftKit/Modules/Connectivity/README.md)
+- [Session Module](Sources/SwiftKit/Modules/Session/README.md)
 
-Networking and Session are planned modules and will be documented when implemented.
+Networking is a planned module and will be documented when implemented.
 
 ---
