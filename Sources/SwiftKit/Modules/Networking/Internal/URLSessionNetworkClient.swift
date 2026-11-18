@@ -50,7 +50,21 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
     }
 
     internal func send(_ request: NetworkRequest) async throws -> NetworkResponse {
+        var request = request
         let startedAt = Date()
+
+        if let tokenProvider = configuration.tokenProvider, let token = await tokenProvider() {
+            var headers = request.headers
+            headers["Authorization"] = "Bearer \(token)"
+            request = NetworkRequest(
+                url: request.url,
+                method: request.method,
+                headers: headers,
+                body: request.body,
+                timeoutInterval: request.timeoutInterval,
+                cachePolicy: request.cachePolicy
+            )
+        }
 
         guard !Task.isCancelled else {
             await capture(
