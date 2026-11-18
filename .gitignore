@@ -40,3 +40,10 @@ fastlane/test_output
 .env
 .env.*
 *.private.swift
+
+# Example apps (Xcode)
+Examples/
+Examples/**/build/
+Examples/**/*.xcresult
+Examples/**/DerivedData/
+Examples/**/.swiftpm/

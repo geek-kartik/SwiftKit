@@ -11,7 +11,7 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 | **Core** | Implemented | Centralized SDK initialization & DI container | `Foundation` | `SwiftKit` |
 | **Logger** | Implemented | Unified logging with automatic data masking | `OSLog` (`os.Logger`) | `LoggerProtocol` |
 | **Secure Storage** | Implemented | Keychain-based credential & token storage | `Security` | `SecureStorageProtocol` |
-| **Networking** | Planned | Asynchronous HTTP client with JSON mapping | `Foundation` (`URLSession`) | `NetworkClientProtocol` |
+| **Networking** | Implemented | Asynchronous HTTP client with JSON mapping and a session inspector | `Foundation` (`URLSession`), `SwiftUI` (inspector) | `NetworkClientProtocol`, `NetworkInspectorProtocol` |
 | **Device Info** | Implemented | Device model, app/OS versions, and build environment | `Foundation` | `DeviceInfoProtocol` |
 | **Connectivity** | Implemented | System network-path monitoring and change notifications | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
 | **Session** | Implemented | User session state, token lifecycle, and expiration checking | `Foundation` | `SessionManagerProtocol` |
@@ -23,8 +23,24 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 - **Single SPM Target**: `SwiftKit` contains all module folders in one target to avoid concurrent `Package.swift` merge conflicts.
 - **Protocol-Driven**: Clean separation between `Public/` contracts, `Internal/` implementations, and `Models/`.
 - **Modern Concurrency**: First-class support for `async/await` and `AsyncStream`.
+- **Global Error Hooks**: Centralized `onError` and `onAuthenticationFailure` callbacks for flows such as automatic sign-out on `401`.
+- **Optional In-App Debugging**: A disabled-by-default session inspector with copy-as-cURL, plus a draggable floating trigger that opens it as a global sheet.
 - **Zero Third-Party Dependencies**: Pure native Apple SDK implementation.
 - **UI Agnostic**: Seamlessly integrates into both SwiftUI and UIKit client applications.
+
+---
+
+## Example App
+
+[`Examples/BankingDemo`](Examples/BankingDemo/README.md) is a complete SwiftUI banking app
+built on the SDK. It exercises every HTTP verb, JSON encoding/decoding, bearer auth,
+Keychain-backed token storage, and the full `NetworkError` surface — against an in-app
+localhost server, so it runs offline with no backend. A draggable floating button opens the
+SDK's session log as a global sheet with headers, bodies, and copy-as-cURL.
+
+```bash
+open Examples/BankingDemo/BankingDemo.xcodeproj
+```
 
 ---
 
@@ -101,6 +117,13 @@ if deviceInfo.isUpdateRequired(minimumVersion: "2.5.0") {
 let connectivity = SwiftKit.shared.connectivity
 connectivity.start()
 
+// Banking API requests with JSON encoding, decoding, and standardized errors
+let request = try NetworkRequest(
+    path: "/v1/accounts/acc_1",
+    headers: ["Authorization": "Bearer \(accessToken)"]
+)
+let account: Account = try await SwiftKit.shared.networkClient.send(request, as: Account.self)
+
 // User Session Management
 let session = SwiftKit.shared.session
 let newSession = Session(
@@ -122,8 +145,7 @@ try session.logout()
 - [Secure Storage Module](Sources/SwiftKit/Modules/SecureStorage/README.md)
 - [Device Info Module](Sources/SwiftKit/Modules/DeviceInfo/README.md)
 - [Connectivity Module](Sources/SwiftKit/Modules/Connectivity/README.md)
+- [Networking Module](Sources/SwiftKit/Modules/Networking/README.md)
 - [Session Module](Sources/SwiftKit/Modules/Session/README.md)
-
-Networking is a planned module and will be documented when implemented.
 
 ---

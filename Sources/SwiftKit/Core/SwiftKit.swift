@@ -32,6 +32,11 @@ public final class SwiftKit: Sendable {
         container.deviceInfo
     }
 
+    /// Access to the centralized HTTP networking client.
+    public var networkClient: NetworkClientProtocol {
+        container.networkClient
+    }
+
     /// Access to user session lifecycle and authentication state.
     public var session: SessionManagerProtocol {
         container.session
