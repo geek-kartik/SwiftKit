@@ -19,7 +19,7 @@ Developer 3
 
 ## Architecture
 - `Public/SessionManagerProtocol.swift`: Public session management contract.
-- `Public/Session.swift`: Public session model (`accessToken`, `refreshToken`, `expiresAt`, `userID`).
+- `Models/Session.swift`: Public session model (`accessToken`, `refreshToken`, `expiresAt`, `userID`).
 - `Public/SessionState.swift`: Public `.unauthenticated` / `.authenticated(Session)` / `.expired` state enum.
 - `Public/SessionEvent.swift`: Public transition events (`authenticated`, `refreshed`, `loggedOut`, `expired`, `unauthorized`).
 - `Public/SessionObservationToken.swift`: Opaque token used to remove observers.
