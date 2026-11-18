@@ -49,25 +49,14 @@ public struct NetworkConfiguration: Sendable {
     /// The default cache policy applied to requests without a request-level override.
     public let cachePolicy: URLRequest.CachePolicy
 
-    /// The diagnostic detail written to the SDK logger for every request.
-    ///
-    /// Defaults to ``LogVerbosity/summary``. Use ``LogVerbosity/verbose`` while debugging in
-    /// Xcode to see request/response headers and JSON bodies, and
-    /// ``LogVerbosity/off`` to silence networking diagnostics entirely.
-    public let logVerbosity: LogVerbosity
+    /// Produces the current bearer token applied to every request.
+    public let tokenProvider: (@Sendable () async -> String?)?
 
-    /// The maximum number of bytes captured from each request or response body in verbose logs.
-    ///
-    /// Bodies larger than this limit are truncated with an explicit marker so the console stays
-    /// readable. Set to `0` to omit body content while keeping headers and status information.
-    /// Defaults to `8_192` bytes.
-    public let maxLoggedBodyBytes: Int
+    /// Refreshes the expired session token. Invoked on a `401` response.
+    public let refreshToken: (@Sendable () async throws -> Void)?
 
-    /// Settings for the SDK-provided session network inspector.
-    ///
-    /// The inspector is disabled by default. Enable it in development builds to capture every
-    /// transaction for the in-app debug screen and its copy-as-cURL export.
-    public let inspector: NetworkInspectorConfiguration
+    /// Whether failure details are logged. Defaults to `false`.
+    public let logErrorDetails: Bool
 
     /// Invoked for every failed transaction, including status, transport, validation, and
     /// decoding failures.
@@ -126,11 +115,11 @@ public struct NetworkConfiguration: Sendable {
         timeoutInterval: TimeInterval = 30,
         acceptableStatusCodes: Range<Int> = 200..<300,
         cachePolicy: URLRequest.CachePolicy = .reloadIgnoringLocalCacheData,
-        logVerbosity: LogVerbosity = .summary,
-        maxLoggedBodyBytes: Int = 8_192,
-        inspector: NetworkInspectorConfiguration = .disabled,
         onError: TransactionHandler? = nil,
         onAuthenticationFailure: TransactionHandler? = nil,
+        tokenProvider: (@Sendable () async -> String?)? = nil,
+        refreshToken: (@Sendable () async throws -> Void)? = nil,
+        logErrorDetails: Bool = false,
         decoderFactory: @escaping @Sendable () -> JSONDecoder = { JSONDecoder() },
         encoderFactory: @escaping @Sendable () -> JSONEncoder = { JSONEncoder() }
     ) {
@@ -139,11 +128,11 @@ public struct NetworkConfiguration: Sendable {
         self.timeoutInterval = timeoutInterval
         self.acceptableStatusCodes = acceptableStatusCodes
         self.cachePolicy = cachePolicy
-        self.logVerbosity = logVerbosity
-        self.maxLoggedBodyBytes = maxLoggedBodyBytes
-        self.inspector = inspector
         self.onError = onError
         self.onAuthenticationFailure = onAuthenticationFailure
+        self.tokenProvider = tokenProvider
+        self.refreshToken = refreshToken
+        self.logErrorDetails = logErrorDetails
         self.decoderFactory = decoderFactory
         self.encoderFactory = encoderFactory
     }
@@ -197,12 +186,5 @@ public struct NetworkConfiguration: Sendable {
             )
         }
 
-        guard maxLoggedBodyBytes >= 0 else {
-            throw NetworkError.invalidConfiguration(
-                reason: "maxLoggedBodyBytes must be zero or greater."
-            )
-        }
-
-        try inspector.validate()
     }
 }

@@ -89,27 +89,6 @@ final class NetworkCurlTests: XCTestCase {
         XCTAssertFalse(command.contains("\\\n"))
     }
 
-    func testTruncatedBodyIsAnnotated() {
-        let inspector = NetworkInspector(
-            configuration: NetworkInspectorConfiguration(isEnabled: true, maxBodyBytes: 5)
-        )
-        let transaction = NetworkTransaction(
-            startedAt: Date(),
-            duration: 0.01,
-            request: NetworkTransaction.Request(
-                method: .post,
-                url: url,
-                body: .init(data: Data("0123456789".utf8))
-            )
-        )
-        inspector.record(transaction)
-
-        let command = try! XCTUnwrap(inspector.transactions.first).curlCommand
-
-        XCTAssertTrue(command.hasPrefix("# Request body truncated: showing 5 of 10 bytes."))
-        XCTAssertTrue(command.contains("--data-raw '01234'"))
-    }
-
     func testBinaryBodyIsOmittedWithAnnotation() {
         let transaction = makeTransaction(
             method: .post,

@@ -7,6 +7,7 @@ import Foundation
 /// keeps the resolved URL, merged headers, and raw bodies so a debug screen can render them and
 /// generate an equivalent cURL command.
 public struct NetworkTransaction: Identifiable, Sendable, Equatable {
+    public enum SensitiveDataPolicy: Sendable { case redact, include }
     /// A captured request body.
     ///
     /// Bodies above the configured capture limit are stored truncated. ``totalByteCount`` keeps
@@ -218,7 +219,7 @@ public struct NetworkTransaction: Identifiable, Sendable, Equatable {
     /// - Parameter sensitiveDataPolicy: Whether credential headers are included verbatim.
     /// - Returns: A multi-line, shell-pasteable cURL command.
     public func curlCommand(
-        sensitiveDataPolicy: NetworkInspectorConfiguration.SensitiveDataPolicy = .redact
+        sensitiveDataPolicy: SensitiveDataPolicy = .redact
     ) -> String {
         var lines: [String] = []
         var notices: [String] = []
