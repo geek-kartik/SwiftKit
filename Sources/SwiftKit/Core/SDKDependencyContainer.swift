@@ -9,6 +9,7 @@ internal final class SDKDependencyContainer: Sendable {
     internal let deviceInfo: DeviceInfoProtocol
     internal let networkClient: NetworkClientProtocol
     internal let networkInspector: NetworkInspectorProtocol
+    internal let session: SessionManagerProtocol
 
     private let inspector: NetworkInspector
 
@@ -40,6 +41,12 @@ internal final class SDKDependencyContainer: Sendable {
             logger: logger,
             inspector: inspector
         )
+        self.session = SessionManager(
+            secureStorage: self.secureStorage,
+            logger: logger,
+            connectivity: self.connectivity,
+            refreshHandler: configuration.sessionTokenRefreshHandler
+        )
     }
 
     /// Custom initializer permitting dependency injection for unit testing.
@@ -50,7 +57,9 @@ internal final class SDKDependencyContainer: Sendable {
         deviceInfo: DeviceInfoProtocol? = nil,
         connectivityMonitor: ConnectivityMonitorProtocol? = nil,
         networkClient: NetworkClientProtocol? = nil,
-        networkInspector: NetworkInspector? = nil
+        networkInspector: NetworkInspector? = nil,
+        sessionManager: SessionManagerProtocol? = nil,
+        sessionTokenRefreshHandler: SessionTokenRefreshHandler? = nil
     ) {
         self.configuration = configuration
         self.logger = logger
@@ -71,6 +80,12 @@ internal final class SDKDependencyContainer: Sendable {
             configuration: configuration.network,
             logger: logger,
             inspector: inspector
+        )
+        self.session = sessionManager ?? SessionManager(
+            secureStorage: self.secureStorage,
+            logger: logger,
+            connectivity: self.connectivity,
+            refreshHandler: sessionTokenRefreshHandler ?? configuration.sessionTokenRefreshHandler
         )
     }
 }

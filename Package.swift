@@ -29,7 +29,8 @@ let package = Package(
                 "Modules/SecureStorage/README.md",
                 "Modules/DeviceInfo/README.md",
                 "Modules/Connectivity/README.md",
-                "Modules/Networking/README.md"
+                "Modules/Networking/README.md",
+                "Modules/Session/README.md"
             ]
         ),
         // Comprehensive test suite

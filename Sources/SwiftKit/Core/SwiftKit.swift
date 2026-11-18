@@ -46,6 +46,11 @@ public final class SwiftKit: Sendable {
         container.networkInspector
     }
 
+    /// Access to user session lifecycle and authentication state.
+    public var session: SessionManagerProtocol {
+        container.session
+    }
+
     // MARK: - Initialization Lifecycle
 
     private init(container: SDKDependencyContainer) {

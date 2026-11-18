@@ -29,6 +29,9 @@ public struct SwiftKitConfiguration: Sendable {
     /// Networking settings applied to every request issued through the SDK.
     public let network: NetworkConfiguration
 
+    /// Optional handler used by the session manager to renew expired credentials.
+    public let sessionTokenRefreshHandler: SessionTokenRefreshHandler?
+
     /// Initializes a new configuration instance for SwiftKit.
     /// - Parameters:
     ///   - environment: The target runtime environment (`.development`). Defaults to `.development`.
@@ -40,6 +43,7 @@ public struct SwiftKitConfiguration: Sendable {
     ///   - keychainService: Keychain service namespace. Defaults to host bundle ID or `"com.swiftkit.sdk"`.
     ///   - keychainAccessibility: Access policy for newly written Keychain values. Defaults to `.afterFirstUnlockThisDeviceOnly`.
     ///   - network: Networking configuration including base URL, headers, and timeouts. Defaults to ``NetworkConfiguration/default``.
+    ///   - sessionTokenRefreshHandler: Handler performing the session token exchange. Defaults to `nil`.
     public init(
         environment: SDKEnvironment = .development,
         subsystem: String = Bundle.main.bundleIdentifier ?? "com.swiftkit.sdk",
@@ -49,7 +53,8 @@ public struct SwiftKitConfiguration: Sendable {
         isLoggingEnabled: Bool = true,
         keychainService: String = Bundle.main.bundleIdentifier ?? "com.swiftkit.sdk",
         keychainAccessibility: SecureStorageAccessibility = .afterFirstUnlockThisDeviceOnly,
-        network: NetworkConfiguration = .default
+        network: NetworkConfiguration = .default,
+        sessionTokenRefreshHandler: SessionTokenRefreshHandler? = nil
     ) {
         self.environment = environment
         self.subsystem = subsystem
@@ -60,6 +65,7 @@ public struct SwiftKitConfiguration: Sendable {
         self.keychainService = keychainService
         self.keychainAccessibility = keychainAccessibility
         self.network = network
+        self.sessionTokenRefreshHandler = sessionTokenRefreshHandler
     }
 
     /// Validates configuration parameters.

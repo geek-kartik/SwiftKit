@@ -14,7 +14,7 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 | **Networking** | Implemented | Asynchronous HTTP client with JSON mapping and a session inspector | `Foundation` (`URLSession`), `SwiftUI` (inspector) | `NetworkClientProtocol`, `NetworkInspectorProtocol` |
 | **Device Info** | Implemented | Device model, app/OS versions, and build environment | `Foundation` | `DeviceInfoProtocol` |
 | **Connectivity** | Implemented | System network-path monitoring and change notifications | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
-| **Session** | Planned | User session state and expiration checking | `Foundation` | `SessionManagerProtocol` |
+| **Session** | Implemented | User session state, token lifecycle, and expiration checking | `Foundation` | `SessionManagerProtocol` |
 
 ---
 
@@ -123,6 +123,20 @@ let request = try NetworkRequest(
     headers: ["Authorization": "Bearer \(accessToken)"]
 )
 let account: Account = try await SwiftKit.shared.networkClient.send(request, as: Account.self)
+
+// User Session Management
+let session = SwiftKit.shared.session
+let newSession = Session(
+    accessToken: "jwt_access_token",
+    refreshToken: "jwt_refresh_token",
+    expiresAt: Date().addingTimeInterval(3600),
+    userID: "user-123"
+)
+try session.startSession(newSession)
+
+// Restore a persisted session at launch and clear it on logout
+try session.restoreSession()
+try session.logout()
 ```
 
 ### 3. Module Documentation
@@ -132,7 +146,6 @@ let account: Account = try await SwiftKit.shared.networkClient.send(request, as:
 - [Device Info Module](Sources/SwiftKit/Modules/DeviceInfo/README.md)
 - [Connectivity Module](Sources/SwiftKit/Modules/Connectivity/README.md)
 - [Networking Module](Sources/SwiftKit/Modules/Networking/README.md)
-
-Session is a planned module and will be documented when implemented.
+- [Session Module](Sources/SwiftKit/Modules/Session/README.md)
 
 ---
