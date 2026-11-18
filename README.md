@@ -11,7 +11,7 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 | **Core** | Implemented | Centralized SDK initialization & DI container | `Foundation` | `SwiftKit` |
 | **Logger** | Implemented | Unified logging with automatic data masking | `OSLog` (`os.Logger`) | `LoggerProtocol` |
 | **Secure Storage** | Implemented | Keychain-based credential & token storage | `Security` | `SecureStorageProtocol` |
-| **Networking** | Planned | Asynchronous HTTP client with JSON mapping | `Foundation` (`URLSession`) | `NetworkClientProtocol` |
+| **Networking** | Implemented | Asynchronous HTTP client with JSON mapping | `Foundation` (`URLSession`) | `NetworkClientProtocol` |
 | **Device Info** | Implemented | Device model, app/OS versions, and build environment | `Foundation` | `DeviceInfoProtocol` |
 | **Connectivity** | Implemented | System network-path monitoring and change notifications | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
 | **Session** | Planned | User session state and expiration checking | `Foundation` | `SessionManagerProtocol` |
@@ -100,6 +100,13 @@ if deviceInfo.isUpdateRequired(minimumVersion: "2.5.0") {
 // Connectivity Monitoring
 let connectivity = SwiftKit.shared.connectivity
 connectivity.start()
+
+// Banking API requests with JSON encoding, decoding, and standardized errors
+let request = try NetworkRequest(
+    path: "/v1/accounts/acc_1",
+    headers: ["Authorization": "Bearer \(accessToken)"]
+)
+let account: Account = try await SwiftKit.shared.networkClient.send(request, as: Account.self)
 ```
 
 ### 3. Module Documentation
@@ -108,7 +115,8 @@ connectivity.start()
 - [Secure Storage Module](Sources/SwiftKit/Modules/SecureStorage/README.md)
 - [Device Info Module](Sources/SwiftKit/Modules/DeviceInfo/README.md)
 - [Connectivity Module](Sources/SwiftKit/Modules/Connectivity/README.md)
+- [Networking Module](Sources/SwiftKit/Modules/Networking/README.md)
 
-Networking and Session are planned modules and will be documented when implemented.
+Session is a planned module and will be documented when implemented.
 
 ---

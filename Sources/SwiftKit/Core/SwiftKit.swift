@@ -32,6 +32,11 @@ public final class SwiftKit: Sendable {
         container.deviceInfo
     }
 
+    /// Access to the centralized HTTP networking client.
+    public var networkClient: NetworkClientProtocol {
+        container.networkClient
+    }
+
     // MARK: - Initialization Lifecycle
 
     private init(container: SDKDependencyContainer) {

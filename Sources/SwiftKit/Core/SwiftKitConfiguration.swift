@@ -26,6 +26,9 @@ public struct SwiftKitConfiguration: Sendable {
     /// Keychain access policy applied to newly written values.
     public let keychainAccessibility: SecureStorageAccessibility
 
+    /// Networking settings applied to every request issued through the SDK.
+    public let network: NetworkConfiguration
+
     /// Initializes a new configuration instance for SwiftKit.
     /// - Parameters:
     ///   - environment: The target runtime environment (`.development`). Defaults to `.development`.
@@ -36,6 +39,7 @@ public struct SwiftKitConfiguration: Sendable {
     ///   - isLoggingEnabled: Master toggle for logging. Defaults to `true`.
     ///   - keychainService: Keychain service namespace. Defaults to host bundle ID or `"com.swiftkit.sdk"`.
     ///   - keychainAccessibility: Access policy for newly written Keychain values. Defaults to `.afterFirstUnlockThisDeviceOnly`.
+    ///   - network: Networking configuration including base URL, headers, and timeouts. Defaults to ``NetworkConfiguration/default``.
     public init(
         environment: SDKEnvironment = .development,
         subsystem: String = Bundle.main.bundleIdentifier ?? "com.swiftkit.sdk",
@@ -44,7 +48,8 @@ public struct SwiftKitConfiguration: Sendable {
         isMaskingEnabled: Bool = true,
         isLoggingEnabled: Bool = true,
         keychainService: String = Bundle.main.bundleIdentifier ?? "com.swiftkit.sdk",
-        keychainAccessibility: SecureStorageAccessibility = .afterFirstUnlockThisDeviceOnly
+        keychainAccessibility: SecureStorageAccessibility = .afterFirstUnlockThisDeviceOnly,
+        network: NetworkConfiguration = .default
     ) {
         self.environment = environment
         self.subsystem = subsystem
@@ -54,6 +59,7 @@ public struct SwiftKitConfiguration: Sendable {
         self.isLoggingEnabled = isLoggingEnabled
         self.keychainService = keychainService
         self.keychainAccessibility = keychainAccessibility
+        self.network = network
     }
 
     /// Validates configuration parameters.
@@ -69,6 +75,12 @@ public struct SwiftKitConfiguration: Sendable {
 
         guard !keychainService.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw SDKError.invalidConfiguration(reason: "Keychain service identifier cannot be empty.")
+        }
+
+        do {
+            try network.validate()
+        } catch {
+            throw SDKError.invalidConfiguration(reason: error.localizedDescription)
         }
     }
 }

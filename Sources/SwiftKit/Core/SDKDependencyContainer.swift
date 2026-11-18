@@ -7,6 +7,7 @@ internal final class SDKDependencyContainer: Sendable {
     internal let connectivity: ConnectivityMonitorProtocol
     internal let secureStorage: SecureStorageProtocol
     internal let deviceInfo: DeviceInfoProtocol
+    internal let networkClient: NetworkClientProtocol
 
     /// Internal assembly based on validated configuration.
     internal init(configuration: SwiftKitConfiguration) {
@@ -28,6 +29,10 @@ internal final class SDKDependencyContainer: Sendable {
         )
         self.deviceInfo = SystemDeviceInfo()
         self.connectivity = NetworkConnectivityMonitor(logger: logger)
+        self.networkClient = URLSessionNetworkClient(
+            configuration: configuration.network,
+            logger: logger
+        )
     }
 
     /// Custom initializer permitting dependency injection for unit testing.
@@ -36,7 +41,8 @@ internal final class SDKDependencyContainer: Sendable {
         logger: LoggerProtocol,
         secureStorage: SecureStorageProtocol? = nil,
         deviceInfo: DeviceInfoProtocol? = nil,
-        connectivityMonitor: ConnectivityMonitorProtocol? = nil
+        connectivityMonitor: ConnectivityMonitorProtocol? = nil,
+        networkClient: NetworkClientProtocol? = nil
     ) {
         self.configuration = configuration
         self.logger = logger
@@ -47,5 +53,9 @@ internal final class SDKDependencyContainer: Sendable {
         )
         self.connectivity = connectivityMonitor ?? NetworkConnectivityMonitor(logger: logger)
         self.deviceInfo = deviceInfo ?? SystemDeviceInfo()
+        self.networkClient = networkClient ?? URLSessionNetworkClient(
+            configuration: configuration.network,
+            logger: logger
+        )
     }
 }
