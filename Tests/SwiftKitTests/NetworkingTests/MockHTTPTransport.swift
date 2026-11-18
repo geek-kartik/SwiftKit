@@ -31,21 +31,29 @@ internal struct TestNetworkClient: Sendable {
     internal let client: URLSessionNetworkClient
     internal let transport: MockHTTPTransport
     internal let logger: MockLogger
+    internal let inspector: NetworkInspector?
 }
 
 /// Creates a networking client backed by a mock transport.
 internal func makeTestNetworkClient(
     configuration: NetworkConfiguration = NetworkConfiguration(baseURL: URL(string: "https://api.example.com")!),
     logger: MockLogger = MockLogger(),
+    inspector: NetworkInspector? = nil,
     handler: @escaping MockHTTPTransport.Handler
 ) -> TestNetworkClient {
     let transport = MockHTTPTransport(handler: handler)
     let client = URLSessionNetworkClient(
         configuration: configuration,
         logger: logger,
-        transport: transport
+        transport: transport,
+        inspector: inspector
     )
-    return TestNetworkClient(client: client, transport: transport, logger: logger)
+    return TestNetworkClient(
+        client: client,
+        transport: transport,
+        logger: logger,
+        inspector: inspector
+    )
 }
 
 /// Builds an `HTTPURLResponse` for transport doubles.

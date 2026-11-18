@@ -9,14 +9,17 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
 
     private let transport: HTTPTransport
     private let logger: LoggerProtocol
+    private let inspector: NetworkTransactionRecording?
 
     /// Creates a client using an ephemeral `URLSession`.
     /// - Parameters:
     ///   - configuration: The networking configuration.
     ///   - logger: Logger receiving redacted request diagnostics.
+    ///   - inspector: Optional transaction sink for the SDK network inspector.
     internal convenience init(
         configuration: NetworkConfiguration = .default,
-        logger: LoggerProtocol
+        logger: LoggerProtocol,
+        inspector: NetworkTransactionRecording? = nil
     ) {
         let sessionConfiguration = URLSessionConfiguration.ephemeral
         sessionConfiguration.timeoutIntervalForRequest = configuration.timeoutInterval
@@ -27,7 +30,8 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
         self.init(
             configuration: configuration,
             logger: logger,
-            transport: URLSessionTransport(session: session)
+            transport: URLSessionTransport(session: session),
+            inspector: inspector
         )
     }
 
@@ -36,24 +40,49 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
     ///   - configuration: The networking configuration.
     ///   - logger: Logger receiving redacted request diagnostics.
     ///   - transport: The transport used to execute prepared requests.
+    ///   - inspector: Optional transaction sink for the SDK network inspector.
     internal init(
         configuration: NetworkConfiguration,
         logger: LoggerProtocol,
-        transport: HTTPTransport
+        transport: HTTPTransport,
+        inspector: NetworkTransactionRecording? = nil
     ) {
         self.configuration = configuration
         self.logger = logger
         self.transport = transport
+        self.inspector = inspector
     }
 
     internal func send(_ request: NetworkRequest) async throws -> NetworkResponse {
+        let startedAt = Date()
+
         guard !Task.isCancelled else {
+            await capture(
+                urlRequest: nil,
+                request: request,
+                response: nil,
+                error: .cancelled,
+                startedAt: startedAt
+            )
             throw NetworkError.cancelled
         }
 
-        let urlRequest = try makeURLRequest(from: request)
+        let urlRequest: URLRequest
+        do {
+            urlRequest = try makeURLRequest(from: request)
+        } catch {
+            let networkError = NetworkError.normalized(from: error)
+            await capture(
+                urlRequest: nil,
+                request: request,
+                response: nil,
+                error: networkError,
+                startedAt: startedAt
+            )
+            throw networkError
+        }
+
         let host = urlRequest.url?.host ?? "unknown"
-        let startedAt = Date()
 
         let data: Data
         let urlResponse: URLResponse
@@ -61,12 +90,38 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
             (data, urlResponse) = try await transport.data(for: urlRequest)
         } catch {
             let networkError = NetworkError.normalized(from: error)
-            logger.error("\(request.method.rawValue) \(host) failed: \(networkError.logDescription)")
+            await capture(
+                urlRequest: urlRequest,
+                request: request,
+                response: nil,
+                error: networkError,
+                startedAt: startedAt
+            )
+            logOutcome(
+                .failure(networkError),
+                urlRequest: urlRequest,
+                response: nil,
+                startedAt: startedAt,
+                summary: "\(request.method.rawValue) \(host) failed: \(networkError.logDescription)"
+            )
             throw networkError
         }
 
         guard let httpResponse = urlResponse as? HTTPURLResponse else {
-            logger.error("\(request.method.rawValue) \(host) failed: invalidResponse")
+            await capture(
+                urlRequest: urlRequest,
+                request: request,
+                response: nil,
+                error: .invalidResponse,
+                startedAt: startedAt
+            )
+            logOutcome(
+                .failure(.invalidResponse),
+                urlRequest: urlRequest,
+                response: nil,
+                startedAt: startedAt,
+                summary: "\(request.method.rawValue) \(host) failed: invalidResponse"
+            )
             throw NetworkError.invalidResponse
         }
 
@@ -80,16 +135,114 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
         let elapsedMilliseconds = String(format: "%.0f", Date().timeIntervalSince(startedAt) * 1000)
 
         guard configuration.acceptableStatusCodes.contains(response.statusCode) else {
-            logger.warning(
-                "\(request.method.rawValue) \(host) -> \(response.statusCode) in \(elapsedMilliseconds) ms"
+            let networkError = NetworkError.httpStatus(response)
+            await capture(
+                urlRequest: urlRequest,
+                request: request,
+                response: response,
+                error: networkError,
+                startedAt: startedAt
             )
-            throw NetworkError.httpStatus(response)
+            logOutcome(
+                .unacceptedStatus,
+                urlRequest: urlRequest,
+                response: response,
+                startedAt: startedAt,
+                summary: "\(request.method.rawValue) \(host) -> \(response.statusCode) in \(elapsedMilliseconds) ms"
+            )
+            throw networkError
         }
 
-        logger.info(
-            "\(request.method.rawValue) \(host) -> \(response.statusCode) in \(elapsedMilliseconds) ms"
+        await capture(
+            urlRequest: urlRequest,
+            request: request,
+            response: response,
+            error: nil,
+            startedAt: startedAt
+        )
+        logOutcome(
+            .success,
+            urlRequest: urlRequest,
+            response: response,
+            startedAt: startedAt,
+            summary: "\(request.method.rawValue) \(host) -> \(response.statusCode) in \(elapsedMilliseconds) ms"
         )
         return response
+    }
+
+    /// Publishes a transaction to the inspector and error callbacks, using the prepared request
+    /// when one exists.
+    private func capture(
+        urlRequest: URLRequest?,
+        request: NetworkRequest,
+        response: NetworkResponse?,
+        error: NetworkError?,
+        startedAt: Date
+    ) async {
+        let headers = urlRequest?.allHTTPHeaderFields ?? request.headers
+        let body = urlRequest?.httpBody ?? request.body
+
+        let transaction = NetworkTransaction(
+            startedAt: startedAt,
+            duration: Date().timeIntervalSince(startedAt),
+            request: NetworkTransaction.Request(
+                method: request.method,
+                url: urlRequest?.url ?? request.url,
+                headers: headers,
+                body: body.map { NetworkTransaction.Body(data: $0) }
+            ),
+            response: response.map {
+                NetworkTransaction.Response(
+                    statusCode: $0.statusCode,
+                    headers: $0.headers,
+                    body: NetworkTransaction.Body(data: $0.data)
+                )
+            },
+            error: error
+        )
+
+        inspector?.record(transaction)
+        await configuration.notify(transaction: transaction)
+    }
+
+    /// Emits the configured level of request diagnostics.
+    ///
+    /// `.summary` keeps the historical single line, `.verbose` prints the formatted transaction
+    /// block, and `.off` suppresses networking logs entirely (including send failures).
+    private func logOutcome(
+        _ outcome: NetworkLogFormatter.Outcome,
+        urlRequest: URLRequest,
+        response: NetworkResponse?,
+        startedAt: Date,
+        summary: String
+    ) {
+        let messages: [String]
+        switch configuration.logVerbosity {
+        case .off:
+            return
+        case .summary:
+            messages = [summary]
+        case .verbose:
+            let block = NetworkLogFormatter.verboseEntry(
+                request: urlRequest,
+                response: response,
+                outcome: outcome,
+                duration: Date().timeIntervalSince(startedAt),
+                maxBodyBytes: configuration.maxLoggedBodyBytes
+            )
+            messages = NetworkLogFormatter.chunks(of: block)
+        }
+
+        for message in messages {
+            switch outcome {
+            case .success:
+                logger.info(message)
+            case .unacceptedStatus:
+                logger.warning(message)
+            case .failure:
+                logger.error(message)
+            }
+        }
     }
 
     /// Builds a `URLRequest`, validating the request and resolving relative URLs.

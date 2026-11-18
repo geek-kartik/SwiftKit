@@ -37,6 +37,15 @@ public final class SwiftKit: Sendable {
         container.networkClient
     }
 
+    /// Access to the SDK-provided session network inspector.
+    ///
+    /// The inspector is disabled unless ``NetworkInspectorConfiguration/isEnabled`` is `true` in
+    /// ``NetworkConfiguration/inspector``. When disabled, it records nothing and reports an empty
+    /// history.
+    public var networkInspector: NetworkInspectorProtocol {
+        container.networkInspector
+    }
+
     // MARK: - Initialization Lifecycle
 
     private init(container: SDKDependencyContainer) {

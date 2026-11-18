@@ -32,7 +32,13 @@ public extension NetworkClientProtocol {
         as type: Response.Type
     ) async throws -> Response {
         let response = try await send(request)
-        return try response.decode(type, using: configuration.decoderFactory())
+
+        do {
+            return try response.decode(type, using: configuration.decoderFactory())
+        } catch let error as NetworkError {
+            await notifyDecodingFailure(error, request: request, response: response)
+            throw error
+        }
     }
 
     /// Sends a request whose body is the JSON encoding of the supplied value.
@@ -62,6 +68,50 @@ public extension NetworkClientProtocol {
         as type: Response.Type
     ) async throws -> Response {
         let response = try await send(request, json: body)
-        return try response.decode(type, using: configuration.decoderFactory())
+
+        do {
+            return try response.decode(type, using: configuration.decoderFactory())
+        } catch let error as NetworkError {
+            await notifyDecodingFailure(error, request: request, response: response)
+            throw error
+        }
+    }
+
+    /// Notifies error callbacks when an accepted HTTP response fails to decode.
+    ///
+    /// Decoding happens outside the transport client, so this synthesizes the transaction from
+    /// the resolved response URL, merged headers, and the original body.
+    private func notifyDecodingFailure(
+        _ error: NetworkError,
+        request: NetworkRequest,
+        response: NetworkResponse
+    ) async {
+        guard configuration.onError != nil || configuration.onAuthenticationFailure != nil else {
+            return
+        }
+
+        var headers = configuration.defaultHeaders
+        for (name, value) in request.headers {
+            headers[name] = value
+        }
+
+        let transaction = NetworkTransaction(
+            startedAt: Date(),
+            duration: 0,
+            request: NetworkTransaction.Request(
+                method: request.method,
+                url: response.url ?? request.url,
+                headers: headers,
+                body: request.body.map { NetworkTransaction.Body(data: $0) }
+            ),
+            response: NetworkTransaction.Response(
+                statusCode: response.statusCode,
+                headers: response.headers,
+                body: NetworkTransaction.Body(data: response.data)
+            ),
+            error: error
+        )
+
+        await configuration.notify(transaction: transaction)
     }
 }

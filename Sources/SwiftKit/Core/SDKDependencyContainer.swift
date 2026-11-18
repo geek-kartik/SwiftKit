@@ -8,6 +8,9 @@ internal final class SDKDependencyContainer: Sendable {
     internal let secureStorage: SecureStorageProtocol
     internal let deviceInfo: DeviceInfoProtocol
     internal let networkClient: NetworkClientProtocol
+    internal let networkInspector: NetworkInspectorProtocol
+
+    private let inspector: NetworkInspector
 
     /// Internal assembly based on validated configuration.
     internal init(configuration: SwiftKitConfiguration) {
@@ -21,7 +24,10 @@ internal final class SDKDependencyContainer: Sendable {
             isEnabled: configuration.isLoggingEnabled
         )
         let logger = OSLogger(configuration: logConfig)
+        let inspector = NetworkInspector(configuration: configuration.network.inspector)
         self.logger = logger
+        self.inspector = inspector
+        self.networkInspector = inspector
         self.secureStorage = KeychainStorage(
             service: configuration.keychainService,
             accessibility: configuration.keychainAccessibility,
@@ -31,7 +37,8 @@ internal final class SDKDependencyContainer: Sendable {
         self.connectivity = NetworkConnectivityMonitor(logger: logger)
         self.networkClient = URLSessionNetworkClient(
             configuration: configuration.network,
-            logger: logger
+            logger: logger,
+            inspector: inspector
         )
     }
 
@@ -42,10 +49,17 @@ internal final class SDKDependencyContainer: Sendable {
         secureStorage: SecureStorageProtocol? = nil,
         deviceInfo: DeviceInfoProtocol? = nil,
         connectivityMonitor: ConnectivityMonitorProtocol? = nil,
-        networkClient: NetworkClientProtocol? = nil
+        networkClient: NetworkClientProtocol? = nil,
+        networkInspector: NetworkInspector? = nil
     ) {
         self.configuration = configuration
         self.logger = logger
+
+        let inspector = networkInspector
+            ?? NetworkInspector(configuration: configuration.network.inspector)
+        self.inspector = inspector
+        self.networkInspector = inspector
+
         self.secureStorage = secureStorage ?? KeychainStorage(
             service: configuration.keychainService,
             accessibility: configuration.keychainAccessibility,
@@ -55,7 +69,8 @@ internal final class SDKDependencyContainer: Sendable {
         self.deviceInfo = deviceInfo ?? SystemDeviceInfo()
         self.networkClient = networkClient ?? URLSessionNetworkClient(
             configuration: configuration.network,
-            logger: logger
+            logger: logger,
+            inspector: inspector
         )
     }
 }

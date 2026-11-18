@@ -11,7 +11,7 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 | **Core** | Implemented | Centralized SDK initialization & DI container | `Foundation` | `SwiftKit` |
 | **Logger** | Implemented | Unified logging with automatic data masking | `OSLog` (`os.Logger`) | `LoggerProtocol` |
 | **Secure Storage** | Implemented | Keychain-based credential & token storage | `Security` | `SecureStorageProtocol` |
-| **Networking** | Implemented | Asynchronous HTTP client with JSON mapping | `Foundation` (`URLSession`) | `NetworkClientProtocol` |
+| **Networking** | Implemented | Asynchronous HTTP client with JSON mapping and a session inspector | `Foundation` (`URLSession`), `SwiftUI` (inspector) | `NetworkClientProtocol`, `NetworkInspectorProtocol` |
 | **Device Info** | Implemented | Device model, app/OS versions, and build environment | `Foundation` | `DeviceInfoProtocol` |
 | **Connectivity** | Implemented | System network-path monitoring and change notifications | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
 | **Session** | Planned | User session state and expiration checking | `Foundation` | `SessionManagerProtocol` |
@@ -23,8 +23,24 @@ A native iOS utility SDK which provides common mobile architecture foundations t
 - **Single SPM Target**: `SwiftKit` contains all module folders in one target to avoid concurrent `Package.swift` merge conflicts.
 - **Protocol-Driven**: Clean separation between `Public/` contracts, `Internal/` implementations, and `Models/`.
 - **Modern Concurrency**: First-class support for `async/await` and `AsyncStream`.
+- **Global Error Hooks**: Centralized `onError` and `onAuthenticationFailure` callbacks for flows such as automatic sign-out on `401`.
+- **Optional In-App Debugging**: A disabled-by-default session inspector with copy-as-cURL, plus a draggable floating trigger that opens it as a global sheet.
 - **Zero Third-Party Dependencies**: Pure native Apple SDK implementation.
 - **UI Agnostic**: Seamlessly integrates into both SwiftUI and UIKit client applications.
+
+---
+
+## Example App
+
+[`Examples/BankingDemo`](Examples/BankingDemo/README.md) is a complete SwiftUI banking app
+built on the SDK. It exercises every HTTP verb, JSON encoding/decoding, bearer auth,
+Keychain-backed token storage, and the full `NetworkError` surface — against an in-app
+localhost server, so it runs offline with no backend. A draggable floating button opens the
+SDK's session log as a global sheet with headers, bodies, and copy-as-cURL.
+
+```bash
+open Examples/BankingDemo/BankingDemo.xcodeproj
+```
 
 ---
 
