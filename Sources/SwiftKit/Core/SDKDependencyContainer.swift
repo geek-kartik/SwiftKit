@@ -7,6 +7,7 @@ internal final class SDKDependencyContainer: Sendable {
     internal let connectivity: ConnectivityMonitorProtocol
     internal let secureStorage: SecureStorageProtocol
     internal let deviceInfo: DeviceInfoProtocol
+    internal let networkClient: NetworkClientProtocol
     internal let session: SessionManagerProtocol
 
     /// Internal assembly based on validated configuration.
@@ -29,6 +30,10 @@ internal final class SDKDependencyContainer: Sendable {
         )
         self.deviceInfo = SystemDeviceInfo()
         self.connectivity = NetworkConnectivityMonitor(logger: logger)
+        self.networkClient = URLSessionNetworkClient(
+            configuration: configuration.network,
+            logger: logger
+        )
         self.session = SessionManager(
             secureStorage: self.secureStorage,
             logger: logger,
@@ -44,11 +49,13 @@ internal final class SDKDependencyContainer: Sendable {
         secureStorage: SecureStorageProtocol? = nil,
         deviceInfo: DeviceInfoProtocol? = nil,
         connectivityMonitor: ConnectivityMonitorProtocol? = nil,
+        networkClient: NetworkClientProtocol? = nil,
         sessionManager: SessionManagerProtocol? = nil,
         sessionTokenRefreshHandler: SessionTokenRefreshHandler? = nil
     ) {
         self.configuration = configuration
         self.logger = logger
+
         self.secureStorage = secureStorage ?? KeychainStorage(
             service: configuration.keychainService,
             accessibility: configuration.keychainAccessibility,
@@ -56,6 +63,10 @@ internal final class SDKDependencyContainer: Sendable {
         )
         self.connectivity = connectivityMonitor ?? NetworkConnectivityMonitor(logger: logger)
         self.deviceInfo = deviceInfo ?? SystemDeviceInfo()
+        self.networkClient = networkClient ?? URLSessionNetworkClient(
+            configuration: configuration.network,
+            logger: logger
+        )
         self.session = sessionManager ?? SessionManager(
             secureStorage: self.secureStorage,
             logger: logger,
