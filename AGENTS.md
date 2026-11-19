@@ -1,225 +1,165 @@
-# AGENTS.md — Developer & AI Agent Guidelines for SwiftKit
+# AGENTS.md — SwiftKit Contributor Guide
 
-Welcome to **SwiftKit**. This document serves as the single source of truth for AI agents and software engineers contributing to this repository. It defines architectural principles, repository structure, coding standards, concurrency guidelines, testing expectations, and contribution workflows.
-
----
-
-## 1. Project Overview
-
-- **Repository**: `SwiftKit`
-- **Purpose**: A lightweight, production-grade native iOS utility SDK providing modular mobile architecture foundations with zero external third-party dependencies.
-- **Target Platform**: iOS 15.0+ exclusively (for iOS mobile applications)
-- **Swift Version**: Swift 5.9+ (Swift 5 language mode with modern concurrency readiness)
-- **UI Frameworks**: Full support for both UIKit and SwiftUI client applications
-- **Distribution**: Swift Package Manager (SPM)
+SwiftKit is a SwiftPM utility SDK for iOS apps. This file is the contributor rulebook: it defines architecture, coding, testing, and documentation expectations. User-facing documentation lives in [README.md](README.md), the module READMEs, and [SampleApp/README.md](SampleApp/README.md).
 
 ---
 
-## 2. Core Architectural Principles & Hard Constraints
+## 1. Project facts
 
-Every agent and developer working on this codebase must adhere strictly to these principles:
-
-### 2.1 Zero Third-Party Dependencies (Strict Rule)
-- **Do NOT add external package dependencies** to `Package.swift` (no Alamofire, KeychainAccess, SnapKit, etc.).
-- All modules **must rely exclusively on native Apple frameworks**:
-  - `Foundation`
-  - `UIKit`
-  - `Security` (Keychain Services)
-  - `OSLog` (`os.Logger`)
-  - `Network` (`NWPathMonitor`)
-
-### 2.2 Exclusively Built for iOS Applications
-SwiftKit is designed, architected, and maintained **exclusively for iOS mobile applications (iOS 15.0+)**.
-- Tailored specifically for iOS mobile application lifecycles, UI paradigms (SwiftUI and UIKit), and device states.
-- Leverages iOS platform capabilities including `UIDevice`, `UIScreen`, battery monitoring, and app lifecycles.
-- **Headless Host Runner Testing**: Local developer CLI workflows (`swift test`) and CI runners execute on macOS hosts. When interacting with iOS hardware or runtime singletons (`UIDevice`, `UIApplication`, etc.), abstract them behind protocols or internal adapters so unit tests can execute headlessly via `swift test` on macOS build hosts without requiring a connected physical device or active simulator.
-
-### 2.3 Single SPM Target Architecture
-- The package exposes a single library and target named `SwiftKit` with root `Sources/SwiftKit`.
-- All modules are organized under `Sources/SwiftKit/Modules/<ModuleName>/`.
-- **Do not modify `Package.swift`** when creating or modifying modules. This prevents merge conflicts across concurrent feature branches and multi-agent workflows. Changes to `Package.swift` are reserved strictly for the **SDK Integrator** role.
-
-### 2.4 Protocol-Driven & Decoupled Design
-Every module is built around a public interface protocol:
-- **`Public/`**: Contains public protocols, public enums, configuration types, and public extensions.
-- **`Internal/`**: Contains internal concrete classes/actors implementing the public protocols.
-- **`Models/`**: Contains internal or public data transfer objects, request/response models, or configuration objects.
-- Client applications depend solely on protocols, never on concrete internal classes.
-
-### 2.5 Centralized Facade & Dependency Injection
-- `SwiftKit` is the public facade singleton (`SwiftKit.shared.<moduleName>`).
-- All internal concrete implementations are instantiated and wired inside `SDKDependencyContainer`.
-- Initialization follows a strict lifecycle: `SwiftKit.initialize(configuration:)` must be invoked prior to accessing `SwiftKit.shared`.
-
-### 2.6 Modern Concurrency & Thread Safety
-- Full conformance with Swift Concurrency: all public interfaces, data structures, and closures must be `Sendable` where appropriate.
-- Protect mutable state using actors or thread-safe primitives (such as the included `ThreadSafeBox<Value>` or `NSLock`).
-- Prefer `async/await` and `AsyncStream` over completion handlers for asynchronous flows.
-- Avoid data races. Never use mutable global variables.
+- **Purpose**: lightweight, production-grade mobile architecture foundations with zero third-party dependencies.
+- **Package**: Swift tools 5.9, Swift 5 language mode, one library target (`SwiftKit`) plus one test target (`SwiftKitTests`).
+- **Platforms**: `Package.swift` declares iOS 15+ and macOS 12+. APIs are designed for iOS apps, but the SDK source uses no UIKit and must keep building on the macOS host used by `swift test`.
+- **Client UI**: apps may use SwiftUI or UIKit; the SDK itself exposes no UI framework types.
+- **Frameworks in use**: `Foundation`, `Security`, `OSLog`, `Network`, and `Darwin`. Do not introduce another framework or dependency without SDK Integrator approval.
 
 ---
 
-## 3. Directory Layout & Organization
+## 2. Hard constraints
 
-Maintain the standard directory structure:
+### 2.1 Zero third-party dependencies
+- Never add external packages to `Package.swift` (no Alamofire, KeychainAccess, SnapKit, etc.).
+- Use native Apple APIs only.
+
+### 2.2 Single SPM target
+- All modules live under `Sources/SwiftKit/Modules/<ModuleName>/` in the single `SwiftKit` target.
+- **Do not modify `Package.swift`** when adding or updating modules. Only the SDK Integrator changes the manifest.
+
+### 2.3 iOS-first, host-testable
+- Keep SDK code free of `UIKit`, `UIDevice`, `UIApplication`, `UIScreen`, and battery APIs.
+- Abstract system effects behind internal protocols or factories so unit tests run headlessly on macOS: `KeychainClient` for Keychain, `HTTPTransport` / `URLProtocol` for networking, `NetworkPathMonitorEngineFactory` for `NWPathMonitor`, and injected `Bundle` / `ProcessInfo` values for device metadata.
+
+### 2.4 Protocol-driven layout
+Every module uses the same structure:
+
+| Directory | Contents |
+|---|---|
+| `Public/` | Public protocols, enums, errors, and configuration types |
+| `Internal/` | `internal final` implementations and injectable system adapters |
+| `Models/` | Data and configuration value types |
+| `README.md` | Module-level usage documentation |
+
+Consumers depend on public protocols, never on `Internal/` types.
+
+### 2.5 Facade and dependency injection
+- `SwiftKit` (`Sources/SwiftKit/Core/SwiftKit.swift`) is the facade: `SwiftKit.shared.<module>`.
+- `SDKDependencyContainer` creates concrete implementations and supports a test initializer with injectable mocks.
+- `SwiftKit.initialize(configuration:)` validates configuration and must be called before `SwiftKit.shared`; otherwise `shared` traps.
+
+### 2.6 Concurrency and thread safety
+- Public types and closures passed across concurrency domains must be `Sendable` where appropriate.
+- Protect mutable state with `NSLock` or `ThreadSafeBox<Value>`; use an actor when ownership is clearer.
+- Prefer `async/await` for asynchronous APIs. Use streams only when a continuous event flow is needed.
+- Use `[weak self]` in escaping closures owned by long-lived objects; never use mutable global state.
+
+---
+
+## 3. Repository layout
 
 ```text
 SwiftKit/
-├── .swiftlint.yml                      # SwiftLint rule configuration
-├── Package.swift                       # SPM package manifest (Single target)
-├── README.md                           # Public SDK documentation & quickstart
-├── AGENTS.md                           # This operational guideline file
-├── Sources/
-│   └── SwiftKit/
-│       ├── Core/                       # Core SDK initialization & DI container
-│       │   ├── SDKEnvironment.swift    # Runtime environment (.development only)
-│       │   ├── SDKError.swift          # Core SDK error definitions
-│       │   ├── SwiftKitConfiguration.swift # Master configuration struct
-│       │   ├── SDKDependencyContainer.swift # Internal DI container
-│       │   └── SwiftKit.swift          # Public SDK facade singleton
-│       ├── Modules/                    # Feature modules
-│       │   ├── Logger/                 # Unified OSLog logging module
-│       │   │   ├── Public/             # LoggerProtocol, LogLevel
-│       │   │   ├── Internal/           # OSLogger
-│       │   │   ├── Models/             # LogConfiguration
-│       │   │   └── README.md           # Module documentation
-│       │   ├── SecureStorage/          # Keychain storage module
-│       │   ├── Networking/             # HTTP client module
-│       │   ├── DeviceInfo/             # Device & app metrics module
-│       │   ├── Connectivity/           # Network reachability module
-│       │   └── Session/                # User session state module
-│       └── Utilities/                  # Shared cross-cutting utilities
-│           ├── Extensions/             # Foundation extensions (String, Data, etc.)
-│           └── Helpers/                # DataMasker, ThreadSafeBox
-└── Tests/
-    └── SwiftKitTests/
-        ├── Core/                       # Lifecycle & Configuration tests
-        ├── IntegrationTests/           # End-to-end integration tests
-        ├── LoggerTests/                # Logger module unit tests
-        ├── SecureStorageTests/         # Keychain tests
-        ├── NetworkingTests/            # Networking tests
-        ├── DeviceInfoTests/            # DeviceInfo tests
-        ├── ConnectivityTests/          # Connectivity tests
-        └── SessionTests/               # Session tests
+├── Package.swift                    # Single SDK target; no third-party dependencies
+├── README.md                        # SDK overview, install, quick start, module links
+├── AGENTS.md                        # This guide
+├── .swiftlint.yml                   # Optional lint configuration
+├── Sources/SwiftKit/
+│   ├── Core/                        # SwiftKit, SwiftKitConfiguration, SDKDependencyContainer,
+│   │                                # SDKEnvironment, SDKError
+│   ├── Modules/
+│   │   ├── Logger/                  # LoggerProtocol, LogLevel, OSLogger
+│   │   ├── SecureStorage/           # SecureStorageProtocol, KeychainStorage
+│   │   ├── Networking/              # NetworkClientProtocol, URLSessionNetworkClient
+│   │   ├── DeviceInfo/              # DeviceInfoProtocol, SystemDeviceInfo
+│   │   ├── Connectivity/            # ConnectivityMonitorProtocol, NetworkConnectivityMonitor
+│   │   └── Session/                 # SessionManagerProtocol, SessionManager
+│   └── Utilities/
+│       ├── Extensions/              # String and Data helpers
+│       └── Helpers/                 # DataMasker, ThreadSafeBox, JSONTextFormatter
+├── Tests/SwiftKitTests/
+│   ├── Core/ IntegrationTests/
+│   ├── LoggerTests/ SecureStorageTests/ NetworkingTests/
+│   └── DeviceInfoTests/ ConnectivityTests/ SessionTests/
+└── SampleApp/
+    ├── project.yml                  # XcodeGen spec; local SwiftKit package (`path: ..`)
+    ├── SampleApp.xcodeproj
+    ├── README.md
+    └── Sources/ Tests/              # SwiftUI demo + XCTest mocks and URLProtocol stub
 ```
 
 ---
 
-## 4. Module Catalog & Responsibilities
+## 4. Module catalog
 
-| Module | Primary Interface | Apple Frameworks | Responsibility | Module Owner |
-|---|---|---|---|---|
-| **Core** | `SwiftKit`, `SwiftKitConfiguration` | `Foundation` | Centralized SDK initialization, DI wiring, environment control, and shared facade | SDK Integrator |
-| **SecureStorage** | `SecureStorageProtocol` | `Security` | Generic Keychain CRUD operations (strings, data, codables), biometric access policies | Developer 1 |
-| **Networking** | `NetworkClientProtocol` | `Foundation` (`URLSession`) | Async HTTP requests, endpoint builders, JSON encoding/decoding, error mapping | Developer 1 |
-| **DeviceInfo** | `DeviceInfoProtocol` | `Foundation`, `UIKit` | Hardware model, OS version, app version, screen bounds, battery state | Developer 2 |
-| **Connectivity** | `ConnectivityMonitorProtocol` | `Network` (`NWPathMonitor`) | Real-time network reachability, cellular/wifi detection, connection path updates | Developer 2 |
-| **Session** | `SessionManagerProtocol` | `Foundation` | User session tokens, state tracking, expiry timestamps, session timeout handling | Developer 3 |
-| **Logger** | `LoggerProtocol` | `OSLog` (`os.Logger`) | Structured diagnostic logging with automatic sensitive token/email redaction | Developer 3 |
+| Module | Primary interface | Frameworks | Responsibility |
+|---|---|---|---|
+| Core | `SwiftKit`, `SwiftKitConfiguration` | `Foundation` | Initialization, validation, DI wiring, facade |
+| Logger | `LoggerProtocol` | `OSLog` | Level-filtered diagnostics with masking |
+| SecureStorage | `SecureStorageProtocol` | `Security` | Keychain CRUD for data, strings, and `Codable` values |
+| Networking | `NetworkClientProtocol` | `Foundation` | Async HTTP, URL/header handling, JSON mapping, typed errors |
+| DeviceInfo | `DeviceInfoProtocol` | `Foundation`, `Darwin` | Device, OS, and app metadata; version comparisons |
+| Connectivity | `ConnectivityMonitorProtocol` | `Network` | Network-path status and change observers |
+| Session | `SessionManagerProtocol` | `Foundation` | Persisted session state, expiry, refresh, observers |
 
----
+## 4.1 Current implementation boundaries
 
-## 5. Workflow for Adding or Updating a Module
+Do not assume these features exist; they are not in `Sources/`:
 
-When instructed to implement or update a module, execute the following steps in order:
+- Network inspector UI/overlay, console request logging, automatic 401 refresh/retry. `tokenProvider`, `onError`, and `onAuthenticationFailure` are wired; `NetworkConfiguration.refreshToken`, `logErrorDetails`, and `LogVerbosity` are not.
+- Biometric Keychain policies, keychain access groups, UIKit/screen/battery APIs, cellular/Wi-Fi interface detection, and idle session timeouts.
+- `SDKError.notInitialized`, `SDKError.dependencyMissing`, and `SessionError.sessionExpired` are declared but unused in production paths.
 
-### Step 1: Create Module Directory Structure
-Under `Sources/SwiftKit/Modules/<ModuleName>/`, create:
-1. `Public/`: The public protocol (e.g. `SecureStorageProtocol.swift`) and any public models/enums.
-2. `Internal/`: Concrete implementation conforming to the protocol (e.g. `KeychainStorage.swift`).
-3. `Models/`: Any internal/public configurations, options, or data types.
-4. `README.md`: Document module ownership, Apple frameworks used, public API surface, and usage snippets.
-
-### Step 2: Define the Public Protocol
-- Ensure the protocol inherits from `Sendable` (or `AnyObject` + `Sendable` where required).
-- Add full docstrings (`///`) to every method, property, and parameter.
-- Use native Swift types (`Data`, `String`, `URL`, `Result`, `Codable`).
-- Keep public APIs intuitive, minimal, and decoupled from underlying Apple implementation types where possible.
-
-### Step 3: Implement the Concrete Class
-- Mark the concrete class as `internal` and `final` (e.g. `internal final class KeychainStorage: SecureStorageProtocol, Sendable`). Use `@unchecked Sendable` only when immutable stored state cannot otherwise be proven `Sendable`.
-- Ensure thread safety: protect mutable state with `NSLock`, `ThreadSafeBox`, or use an `actor`.
-- Redact sensitive data before logging using `DataMasker.mask(...)`.
-- Abstract or mock iOS device-specific hardware/runtime singletons (`UIDevice`, `UIApplication`) so unit tests run cleanly on host developer machines.
-
-### Step 4: Wire into Dependency Container & Facade
-1. Update `Sources/SwiftKit/Core/SwiftKitConfiguration.swift` if the module requires user configuration parameters.
-2. Update `Sources/SwiftKit/Core/SDKDependencyContainer.swift`:
-   - Add property: `internal let <moduleName>: <ModuleName>Protocol`
-   - Instantiate inside `init(configuration:)` and inject into test initializers.
-3. Update `Sources/SwiftKit/Core/SwiftKit.swift`:
-   - Expose public property:
-     ```swift
-     public var <moduleName>: <ModuleName>Protocol {
-         container.<moduleName>
-     }
-     ```
-
-### Step 5: Implement Unit Tests
-Under `Tests/SwiftKitTests/<ModuleName>Tests/`:
-- Create test file (e.g. `<ModuleName>Tests.swift`).
-- Add tests covering positive paths, edge cases, error conditions, and thread safety.
-- For async APIs, write `async throws` test methods.
-- For hardware/system dependencies (Keychain, `URLSession`, `NWPathMonitor`), create internal mock protocols or mock URL protocols to test in isolation without requiring physical devices.
-
-### Step 6: Verify Build & Tests
-Always run the test suite to ensure clean compilation and passing tests:
-```bash
-swift test
-```
+Document and build against what is implemented. Extend these boundaries deliberately rather than describing planned work as shipped.
 
 ---
 
-## 6. Coding Standards & Conventions
+## 5. Workflow for adding or updating a module
 
-### 6.1 Access Modifiers
-- `public`: Only items intended to be exported to consuming applications (Protocols, configuration structs, facade methods).
-- `internal`: Concrete implementations, DI container, test helpers.
-- `private` / `fileprivate`: Implementation details inside classes/structs.
+1. **Structure**: create `Public/`, `Internal/`, `Models/`, and `README.md` under `Sources/SwiftKit/Modules/<ModuleName>/`.
+2. **Public contract**: define a `Sendable` protocol with complete `///` docstrings. Use native types (`Data`, `String`, `URL`, `Codable`) and keep the API minimal.
+3. **Implementation**: use `internal final class ...: <Module>Protocol, Sendable`. Use `@unchecked Sendable` only when compiler-checked conformance is impossible. Inject system adapters for headless tests.
+4. **Wiring**:
+   - Add configuration with safe defaults in `SwiftKitConfiguration.swift`.
+   - Add a stored property and instantiation in both initializers of `SDKDependencyContainer.swift`.
+   - Expose the protocol through a facade property in `SwiftKit.swift`.
+   - Update the manifest only if you are the SDK Integrator.
+5. **Tests**: add `Tests/SwiftKitTests/<ModuleName>Tests/` covering success paths, edge cases, errors, and concurrency. Use `async throws` tests for async APIs and mocks for system dependencies.
+6. **Verify**: run `swift build && swift test`. If the sample app changed, also run the `xcodebuild` commands in section 8.
+
+---
+
+## 6. Coding standards
+
+### 6.1 Access modifiers
+- `public`: only protocols, public value types, and facade APIs consumed by apps.
+- `internal`: concrete implementations, DI container, and test helpers.
+- `private` / `fileprivate`: implementation details.
 
 ### 6.2 Documentation
-- All `public` protocols, classes, structs, enums, functions, and properties **must** have docstrings using `///`.
-- Document parameters (`- Parameter ...`), return values (`- Returns: ...`), and thrown errors (`- Throws: ...`).
+- Every public declaration needs `///` docstrings, including parameters, returns, and thrown errors.
+- Keep module READMEs in sync with public API changes; do not duplicate the root README's installation instructions.
 
-### 6.3 Concurrency & Memory Safety
-- Strictly avoid retain cycles; use `[weak self]` in closures where necessary.
-- Concurrency contracts: Types passed across concurrency domains must conform to `Sendable`.
-- If using locks, prefer `defer { lock.unlock() }` immediately after `lock.lock()`.
-- Utilize `ThreadSafeBox<Value>` for atomic mutations:
+### 6.3 Concurrency and memory safety
+- Use `defer { lock.unlock() }` immediately after `lock.lock()`.
+- Prefer immutable stored state; mutate through `ThreadSafeBox` or an actor:
   ```swift
   let box = ThreadSafeBox<[String: Any]>([:])
   box.mutate { $0["key"] = "value" }
   ```
 
-### 6.4 Data Security & Masking
-- When outputting debug logs, network payloads, or diagnostic details, sensitive data (tokens, authorization headers, passwords, secrets, emails) **must be masked**.
-- Call `DataMasker.mask(string)` whenever sensitive data might be logged or printed.
+### 6.4 Data security
+- Never log raw tokens, authorization headers, passwords, emails, or request/response bodies. Pass diagnostic text through `DataMasker.mask(_:)` first.
+- `NetworkTransaction` stores raw bodies; callers must mask them before display or logging. Its cURL helpers redact credential headers by default.
 
-### 6.5 Error Handling
-- Modules should declare specific, domain-focused error enums conforming to `Error, LocalizedError, Equatable, Sendable`.
-- Provide meaningful `errorDescription` for diagnostics:
-  ```swift
-  public enum SecureStorageError: Error, LocalizedError, Equatable, Sendable {
-      case itemNotFound(key: String)
-      case writeFailed(status: OSStatus)
-      
-      public var errorDescription: String? {
-          switch self {
-          case .itemNotFound(let key):
-              return "No item found in secure storage for key: \(key)"
-          case .writeFailed(let status):
-              return "Failed to write to secure storage with OSStatus code: \(status)"
-          }
-      }
-  }
-  ```
+### 6.5 Errors
+- Declare domain errors as `Error, LocalizedError, Equatable, Sendable` with meaningful `errorDescription`.
+- Keep keys, tokens, and raw values out of error messages used for diagnostics.
 
 ---
 
-## 7. Testing Guidelines
+## 7. Testing guidelines
 
-### 7.1 Resetting Lifecycle Between Tests
-`SwiftKit` is a singleton. In test cases that initialize the SDK, **always reset state** in `setUp()` and `tearDown()`:
+### 7.1 Singleton lifecycle
+Tests use `@testable import SwiftKit` to access internal test hooks. Reset the singleton in tests that initialize the SDK:
+
 ```swift
 override func setUp() {
     super.setUp()
@@ -232,13 +172,22 @@ override func tearDown() {
 }
 ```
 
-### 7.2 Testing via Dependency Injection
-When testing components that depend on other modules:
-- Use `SDKDependencyContainer(configuration: ..., <module>: mockModule)` to inject mock implementations.
-- Use `SwiftKit.initializeForTesting(container:)` to test facade wiring with mocks.
+### 7.2 Injecting mocks
+Use the test initializer with the exact labels of `SDKDependencyContainer`:
 
-### 7.3 Testing Asynchronous Code
-Use native Swift async testing:
+```swift
+let container = SDKDependencyContainer(
+    configuration: configuration,
+    logger: MockLogger(),
+    secureStorage: MockSecureStorage(),
+    networkClient: MockNetworkClient()
+)
+SwiftKit.initializeForTesting(container: container)
+```
+
+`connectivityMonitor`, `deviceInfo`, `sessionManager`, and `sessionTokenRefreshHandler` are also injectable; omitted modules get production implementations.
+
+### 7.3 Async tests
 ```swift
 func testAsyncOperation() async throws {
     let result = try await service.fetchData()
@@ -248,33 +197,51 @@ func testAsyncOperation() async throws {
 
 ---
 
-## 8. Common Developer & Agent Commands
+## 8. Commands
 
-Run these terminal commands from the workspace root:
+From the repository root:
 
-| Command | Purpose |
-|---|---|
-| `swift build` | Compiles the entire SDK target |
-| `swift test` | Runs all unit and integration tests |
-| `swift test --filter <TestSuite>` | Runs a specific test suite (e.g. `swift test --filter LoggerTests`) |
-| `swift test --filter <TestSuite>/<testCase>` | Runs an individual test case |
-| `swift package clean` | Cleans temporary build artifacts |
+```bash
+swift build
+swift test
+swift test --filter LoggerTests
+```
+
+Sample app (Xcode + iOS simulator required):
+
+```bash
+xcodebuild build -project SampleApp/SampleApp.xcodeproj \
+  -scheme SampleApp -destination "generic/platform=iOS Simulator" \
+  CODE_SIGNING_ALLOWED=NO
+
+xcodebuild test -project SampleApp/SampleApp.xcodeproj \
+  -scheme SampleApp -destination "platform=iOS Simulator,name=iPhone 17" \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+Use an installed simulator name in the test command. Run `xcodegen generate` from `SampleApp/` only after changing `project.yml`. `swift test` does not build the sample app.
 
 ---
 
-## 9. Pre-PR & Task Completion Checklist
+## 9. Documentation levels
 
-Before finalizing any task or PR, verify every item below:
+| File | Scope |
+|---|---|
+| `README.md` | Evaluation, installation, quick start, module links, build/test, sample app |
+| `Sources/SwiftKit/Modules/<Name>/README.md` | Purpose, public API, configuration, errors, limits, module-specific examples |
+| `SampleApp/README.md` | Setup, offline mock backend, demonstrated flows, build/run commands |
 
-- [ ] **Zero External Dependencies**: Verified that `Package.swift` has not introduced any third-party dependencies.
-- [ ] **iOS-Only Target & Architecture**: Verified implementation is tailored exclusively for iOS applications (iOS 15.0+).
-- [ ] **Single SPM Target Intact**: No extra targets or unnecessary modifications were made to `Package.swift`.
-- [ ] **Architecture Conformity**:
-  - Public interface is exposed via a protocol under `Public/`.
-  - Concrete class is marked `internal` under `Internal/`.
-  - Wires into `SDKDependencyContainer` and `SwiftKit` facade.
-- [ ] **Docstrings**: All public APIs contain clear triple-slash (`///`) docstrings.
-- [ ] **Tests Added & Passing**: Unit tests added in `Tests/SwiftKitTests/<ModuleName>Tests/` and `swift test` passes with zero failures.
-- [ ] **Module README**: Created or updated `Sources/SwiftKit/Modules/<ModuleName>/README.md`.
-- [ ] **Data Redaction**: Sensitive information is sanitized through `DataMasker` when logged.
-- [ ] **Thread Safety & Sendable**: Concurrency models are validated and race-condition free.
+Update every level affected by an API change; keep examples copy-pasteable and verified against the source.
+
+---
+
+## 10. Pre-PR checklist
+
+- [ ] No third-party dependencies; `Package.swift` unchanged unless you are the SDK Integrator.
+- [ ] Builds with `swift build`; `swift test` passes.
+- [ ] Public API is protocol-driven, documented, `Sendable` where appropriate, and wired through the container/facade.
+- [ ] Mutable state is lock/actor protected; no data races.
+- [ ] Sensitive values are masked before logging or display.
+- [ ] Tests cover new behavior, including errors and concurrency.
+- [ ] Affected module README, root README snippets, and `SampleApp/README.md` are updated.
+- [ ] No documentation claims unsupported features from section 4.1.
