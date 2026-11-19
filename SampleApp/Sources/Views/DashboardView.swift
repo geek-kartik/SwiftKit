@@ -85,6 +85,24 @@ public struct DashboardView: View {
                         )
                     }
 
+                    NavigationLink(destination: SessionView()) {
+                        ModuleRow(
+                            icon: "person.badge.key.fill",
+                            title: "Session Manager",
+                            description: "Token lifecycle, observers, expiry, and 401 handling",
+                            color: .pink
+                        )
+                    }
+
+                    NavigationLink(destination: NetworkingView()) {
+                        ModuleRow(
+                            icon: "network.circle.fill",
+                            title: "Networking Client",
+                            description: "HTTP verbs, JSON mapping, bearer injection, and refresh retry",
+                            color: .green
+                        )
+                    }
+
                     NavigationLink(destination: LoggingView()) {
                         ModuleRow(
                             icon: "terminal.fill",

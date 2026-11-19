@@ -26,6 +26,14 @@
 		E1F4F71BA36550062CED6950 /* LoggingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABF66CF5F8D5ABB4281DF56 /* LoggingView.swift */; };
 		E99A8137910A1209EA2A0F36 /* SDKService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68193E6F5BC1F27A26C31EF1 /* SDKService.swift */; };
 		F5C150FF61378892C15EED13 /* ConnectivityViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDBEDED3EE87E7576A26986 /* ConnectivityViewModelTests.swift */; };
+		A11CE0000000000000000002 /* SampleBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* SampleBackend.swift */; };
+		A11CE0000000000000000004 /* SessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000003 /* SessionViewModel.swift */; };
+		A11CE0000000000000000006 /* NetworkingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000005 /* NetworkingViewModel.swift */; };
+		A11CE0000000000000000008 /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000007 /* SessionView.swift */; };
+		A11CE000000000000000000A /* NetworkingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000009 /* NetworkingView.swift */; };
+		A11CE000000000000000000C /* SessionViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE000000000000000000B /* SessionViewModelTests.swift */; };
+		A11CE000000000000000000E /* NetworkingViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE000000000000000000D /* NetworkingViewModelTests.swift */; };
+		A11CE0000000000000000010 /* SampleBackendURLProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE000000000000000000F /* SampleBackendURLProtocolTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +67,14 @@
 		D9C813816B4C71992AE68FD3 /* SecureStorageViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureStorageViewModel.swift; sourceTree = "<group>"; };
 		DD0E01F9D77DC91660EB290F /* SampleApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SampleApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9D5EAAA275B7F9D7CBD8108 /* SwiftKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SwiftKit; path = ..; sourceTree = SOURCE_ROOT; };
+		A11CE0000000000000000001 /* SampleBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleBackend.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000003 /* SessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewModel.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000005 /* NetworkingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkingViewModel.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000007 /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000009 /* NetworkingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkingView.swift; sourceTree = "<group>"; };
+		A11CE000000000000000000B /* SessionViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewModelTests.swift; sourceTree = "<group>"; };
+		A11CE000000000000000000D /* NetworkingViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkingViewModelTests.swift; sourceTree = "<group>"; };
+		A11CE000000000000000000F /* SampleBackendURLProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleBackendURLProtocolTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,6 +104,9 @@
 				1ADD473322D3F5DE1436DCDA /* DeviceInfoViewModelTests.swift */,
 				28B180A08568B1BFFE0E11E0 /* LoggingViewModelTests.swift */,
 				2C89D436DCE957234195C7A8 /* SecureStorageViewModelTests.swift */,
+				A11CE000000000000000000B /* SessionViewModelTests.swift */,
+				A11CE000000000000000000D /* NetworkingViewModelTests.swift */,
+				A11CE000000000000000000F /* SampleBackendURLProtocolTests.swift */,
 				8AC587F9AC77B02A79BE2DA3 /* Mocks */,
 			);
 			name = SampleAppTests;
@@ -126,6 +145,7 @@
 			isa = PBXGroup;
 			children = (
 				68193E6F5BC1F27A26C31EF1 /* SDKService.swift */,
+				A11CE0000000000000000001 /* SampleBackend.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -145,6 +165,8 @@
 				58495D98331A0B1251314F23 /* DeviceInfoViewModel.swift */,
 				B26949CB4FE9D12D604E95E8 /* LoggingViewModel.swift */,
 				D9C813816B4C71992AE68FD3 /* SecureStorageViewModel.swift */,
+				A11CE0000000000000000003 /* SessionViewModel.swift */,
+				A11CE0000000000000000005 /* NetworkingViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -167,6 +189,8 @@
 				BC53B86EA3576A4713CDA589 /* DeviceInfoView.swift */,
 				AABF66CF5F8D5ABB4281DF56 /* LoggingView.swift */,
 				0BE5F9FBF50C466D1087BD0A /* SecureStorageView.swift */,
+				A11CE0000000000000000007 /* SessionView.swift */,
+				A11CE0000000000000000009 /* NetworkingView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -274,6 +298,9 @@
 				5C4BF415181531D7FEA981F4 /* LoggingViewModelTests.swift in Sources */,
 				81C09536EB58497B8378C42A /* SampleAppMocks.swift in Sources */,
 				CB032B17CA6602015563550B /* SecureStorageViewModelTests.swift in Sources */,
+				A11CE000000000000000000C /* SessionViewModelTests.swift in Sources */,
+				A11CE000000000000000000E /* NetworkingViewModelTests.swift in Sources */,
+				A11CE0000000000000000010 /* SampleBackendURLProtocolTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -293,6 +320,11 @@
 				30B1569ADDF12963A3D733A5 /* SampleSessionProfile.swift in Sources */,
 				A4F93BF107F7E778D27C80BB /* SecureStorageView.swift in Sources */,
 				81B8FDDE9CEE9804EF7E2E3E /* SecureStorageViewModel.swift in Sources */,
+				A11CE0000000000000000002 /* SampleBackend.swift in Sources */,
+				A11CE0000000000000000004 /* SessionViewModel.swift in Sources */,
+				A11CE0000000000000000006 /* NetworkingViewModel.swift in Sources */,
+				A11CE0000000000000000008 /* SessionView.swift in Sources */,
+				A11CE000000000000000000A /* NetworkingView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

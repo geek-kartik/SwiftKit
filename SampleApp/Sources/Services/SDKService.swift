@@ -7,6 +7,8 @@ public protocol SDKServiceProtocol: AnyObject, Sendable {
     var deviceInfo: DeviceInfoProtocol { get }
     var connectivity: ConnectivityMonitorProtocol { get }
     var logger: LoggerProtocol { get }
+    var session: SessionManagerProtocol { get }
+    var networkClient: NetworkClientProtocol { get }
 }
 
 /// Concrete production service wrapping the public `SwiftKit.shared` facade.
@@ -29,5 +31,13 @@ public final class SDKService: SDKServiceProtocol, @unchecked Sendable {
 
     public var logger: LoggerProtocol {
         SwiftKit.shared.logger
+    }
+
+    public var session: SessionManagerProtocol {
+        SwiftKit.shared.session
+    }
+
+    public var networkClient: NetworkClientProtocol {
+        SwiftKit.shared.networkClient
     }
 }
