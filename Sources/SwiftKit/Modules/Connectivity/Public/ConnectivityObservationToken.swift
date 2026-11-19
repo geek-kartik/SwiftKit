@@ -7,7 +7,7 @@ import Foundation
 public struct ConnectivityObservationToken: Hashable, Sendable {
     internal let id: UUID
 
-    internal init(id: UUID = UUID()) {
+    public init(id: UUID = UUID()) {
         self.id = id
     }
 
