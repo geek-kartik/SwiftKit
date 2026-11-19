@@ -9,9 +9,6 @@ This module intentionally excludes screen bounds, battery state, locale, and con
 - `Foundation` (`Bundle`, `ProcessInfo`)
 - `Darwin` (`utsname`, `uname`)
 
-## Module Owner
-Developer 1
-
 ## Architecture
 - `Public/DeviceInfoProtocol.swift`: Public read-only contract plus version comparison helpers.
 - `Internal/SystemDeviceInfo.swift`: Concrete `DeviceInfoProtocol` implementation backed by `Bundle` and `ProcessInfo`.
@@ -26,11 +23,13 @@ Developer 1
 | `buildNumber` | `String` | Build number (`CFBundleVersion`), defaulting to `0`. |
 | `bundleIdentifier` | `String` | Host bundle identifier, defaulting to `unknown`. |
 | `appName` | `String` | `CFBundleDisplayName` falling back to `CFBundleName`, defaulting to `unknown`. |
-| `isSimulator` | `Bool` | `true` when running on a simulator. |
-| `isDebugBuild` | `Bool` | `true` when compiled with debug assertions. |
+| `isSimulator` | `Bool` | `true` when running on a simulator (`#if targetEnvironment(simulator)`). |
+| `isDebugBuild` | `Bool` | `true` in `DEBUG` builds (`#if DEBUG`). |
 | `isAppVersionAtLeast(_:)` | `Bool` | Compares `appVersion` against a minimum version. |
 | `isUpdateRequired(minimumVersion:)` | `Bool` | `true` when `appVersion` is below the minimum version. |
 | `isOSVersionAtLeast(_:)` | `Bool` | Compares the current OS version against a minimum version. |
+
+No configuration is required; values are read from the host `Bundle` and `ProcessInfo`.
 
 ## Usage
 ```swift

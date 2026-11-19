@@ -1,151 +1,100 @@
 # SwiftKit
 
-A native iOS utility SDK which provides common mobile architecture foundations through independent, decoupled, and testable modules with zero external third-party dependencies.
+A native iOS utility SDK that provides common mobile architecture foundations through all independent, protocol-driven modules. It has zero third-party dependencies and works in both SwiftUI and UIKit apps.
 
----
+## Requirements
 
-## Supported Modules & Technologies
+| Requirement | Version |
+|---|---|
+| iOS | 15.0+ |
+| Swift | 5.9+ (Swift 5 language mode) |
+| Xcode | 15.0+ |
+| Dependencies | None; Apple frameworks only |
 
-| Module | Status | Purpose | Native Apple Framework | Primary Interface |
-|---|---|---|---|---|
-| **Core** | Implemented | Centralized SDK initialization & DI container | `Foundation` | `SwiftKit` |
-| **Logger** | Implemented | Unified logging with automatic data masking | `OSLog` (`os.Logger`) | `LoggerProtocol` |
-| **Secure Storage** | Implemented | Keychain-based credential & token storage | `Security` | `SecureStorageProtocol` |
-| **Networking** | Implemented | Asynchronous HTTP client with JSON mapping and a session inspector | `Foundation` (`URLSession`), `SwiftUI` (inspector) | `NetworkClientProtocol`, `NetworkInspectorProtocol` |
-| **Device Info** | Implemented | Device model, app/OS versions, and build environment | `Foundation` | `DeviceInfoProtocol` |
-| **Connectivity** | Implemented | System network-path monitoring and change notifications | `Network` (`NWPathMonitor`) | `ConnectivityMonitorProtocol` |
-| **Session** | Implemented | User session state, token lifecycle, and expiration checking | `Foundation` | `SessionManagerProtocol` |
+`Package.swift` also declares macOS 12.0+ so the package and its tests can be built on a Mac host. Implementation uses `Foundation`, `Security`, `Network`, and `OSLog`; no UIKit APIs are used.
 
----
+## Modules
 
-## Architecture Highlights
+| Module | Interface | What it provides |
+|---|---|---|
+| [Logger](Sources/SwiftKit/Modules/Logger/README.md) | `LoggerProtocol` | `OSLog`-backed logging with masking of sensitive values |
+| [Secure Storage](Sources/SwiftKit/Modules/SecureStorage/README.md) | `SecureStorageProtocol` | Keychain CRUD for strings, data, and `Codable` values |
+| [Networking](Sources/SwiftKit/Modules/Networking/README.md) | `NetworkClientProtocol` | Async HTTP requests, JSON mapping, typed errors |
+| [Device Info](Sources/SwiftKit/Modules/DeviceInfo/README.md) | `DeviceInfoProtocol` | Device, OS, and app metadata with version helpers |
+| [Connectivity](Sources/SwiftKit/Modules/Connectivity/README.md) | `ConnectivityMonitorProtocol` | `NWPathMonitor`-based status and change callbacks |
+| [Session](Sources/SwiftKit/Modules/Session/README.md) | `SessionManagerProtocol` | Persisted session state, expiry, refresh, and observers |
 
-- **Single SPM Target**: `SwiftKit` contains all module folders in one target to avoid concurrent `Package.swift` merge conflicts.
-- **Protocol-Driven**: Clean separation between `Public/` contracts, `Internal/` implementations, and `Models/`.
-- **Modern Concurrency**: First-class support for `async/await` and `AsyncStream`.
-- **Global Error Hooks**: Centralized `onError` and `onAuthenticationFailure` callbacks for flows such as automatic sign-out on `401`.
-- **Optional In-App Debugging**: A disabled-by-default session inspector with copy-as-cURL, plus a draggable floating trigger that opens it as a global sheet.
-- **Zero Third-Party Dependencies**: Pure native Apple SDK implementation.
-- **UI Agnostic**: Seamlessly integrates into both SwiftUI and UIKit client applications.
+Core (`Sources/SwiftKit/Core/`) wires the modules in `SDKDependencyContainer` and exposes them through `SwiftKit.shared`. Each module folder follows `Public/` (protocols and public types), `Internal/` (concrete implementations), and `Models/` (configuration and data types).
 
----
+## Installation
 
-## Example App
-
-[`Examples/BankingDemo`](Examples/BankingDemo/README.md) is a complete SwiftUI banking app
-built on the SDK. It exercises every HTTP verb, JSON encoding/decoding, bearer auth,
-Keychain-backed token storage, and the full `NetworkError` surface — against an in-app
-localhost server, so it runs offline with no backend. A draggable floating button opens the
-SDK's session log as a global sheet with headers, bodies, and copy-as-cURL.
-
-```bash
-open Examples/BankingDemo/BankingDemo.xcodeproj
-```
-
----
-
-## Integration via Swift Package Manager
-
-Add SwiftKit to your `Package.swift` manifest or via Xcode Package Dependencies:
+Add the package in Xcode (**File → Add Package Dependencies…**) using `https://github.com/geek-kartik/SwiftKit`, or add it to `Package.swift`:
 
 ```swift
 dependencies: [
     .package(url: "https://github.com/geek-kartik/SwiftKit.git", branch: "main")
+],
+targets: [
+    .target(
+        name: "YourApp",
+        dependencies: [.product(name: "SwiftKit", package: "SwiftKit")]
+    )
 ]
 ```
 
-Link `SwiftKit` to your target:
-```swift
-.target(
-    name: "YourApp",
-    dependencies: [
-        .product(name: "SwiftKit", package: "SwiftKit")
-    ]
-)
-```
+## Quick start
 
----
-
-## Quick Start & Usage
-
-### 1. Initialize the SDK
-Initialize early during application startup:
+Initialize once, early in app startup. `SwiftKit.initialize(configuration:)` validates the configuration and throws `SDKError.invalidConfiguration` or `SDKError.alreadyInitialized`; accessing `SwiftKit.shared` before a successful initialize traps.
 
 ```swift
 import SwiftKit
 
 let configuration = SwiftKitConfiguration(
-    environment: .development,
+    subsystem: "com.example.app",
+    category: "App",
     keychainService: "com.example.app.storage",
-    keychainAccessibility: .afterFirstUnlockThisDeviceOnly,
-    isLoggingEnabled: true
+    network: NetworkConfiguration(baseURL: URL(string: "https://api.example.com")!)
 )
 
 try SwiftKit.initialize(configuration: configuration)
-```
 
-### 2. Access Utilities via Shared Facade
+SwiftKit.shared.logger.info("Application started")
 
-```swift
-// Logging with automatic sensitive data redaction
-SwiftKit.shared.logger.info("Application started successfully.")
-
-// Secure Keychain Storage
-try SwiftKit.shared.secureStorage.setString("jwt_token_here", forKey: "authToken")
+try SwiftKit.shared.secureStorage.setString("token", forKey: "authToken")
 let token = try SwiftKit.shared.secureStorage.string(forKey: "authToken")
 
-// Remove a stored value when it is no longer needed
-try SwiftKit.shared.secureStorage.remove(forKey: "authToken")
+SwiftKit.shared.connectivity.start()
 
-// Device model, version, and build environment information
-let deviceInfo = SwiftKit.shared.deviceInfo
-let model = deviceInfo.deviceModel
-let osVersion = deviceInfo.osVersion
-let appVersion = deviceInfo.appVersion
-let buildNumber = deviceInfo.buildNumber
-let bundleIdentifier = deviceInfo.bundleIdentifier
-let appName = deviceInfo.appName
-let isSimulator = deviceInfo.isSimulator
-let isDebugBuild = deviceInfo.isDebugBuild
-
-// Force-update and feature-gating helpers
-if deviceInfo.isUpdateRequired(minimumVersion: "2.5.0") {
-    // Prompt the user to update.
-}
-
-// Connectivity Monitoring
-let connectivity = SwiftKit.shared.connectivity
-connectivity.start()
-
-// Banking API requests with JSON encoding, decoding, and standardized errors
-let request = try NetworkRequest(
-    path: "/v1/accounts/acc_1",
-    headers: ["Authorization": "Bearer \(accessToken)"]
-)
-let account: Account = try await SwiftKit.shared.networkClient.send(request, as: Account.self)
-
-// User Session Management
-let session = SwiftKit.shared.session
-let newSession = Session(
-    accessToken: "jwt_access_token",
-    refreshToken: "jwt_refresh_token",
-    expiresAt: Date().addingTimeInterval(3600),
-    userID: "user-123"
-)
-try session.startSession(newSession)
-
-// Restore a persisted session at launch and clear it on logout
-try session.restoreSession()
-try session.logout()
+let request = try NetworkRequest(path: "/v1/accounts/1")
+let response = try await SwiftKit.shared.networkClient.send(request)
 ```
 
-### 3. Module Documentation
+Each module README has complete examples, including session creation and typed request decoding.
 
-- [Logger Module](Sources/SwiftKit/Modules/Logger/README.md)
-- [Secure Storage Module](Sources/SwiftKit/Modules/SecureStorage/README.md)
-- [Device Info Module](Sources/SwiftKit/Modules/DeviceInfo/README.md)
-- [Connectivity Module](Sources/SwiftKit/Modules/Connectivity/README.md)
-- [Networking Module](Sources/SwiftKit/Modules/Networking/README.md)
-- [Session Module](Sources/SwiftKit/Modules/Session/README.md)
+### Error and authentication callbacks
 
----
+`NetworkConfiguration.onError` and `.onAuthenticationFailure` receive a `NetworkTransaction` for failed requests. They report auth failures (`401`/`403`) but do not sign the user out or retry automatically; handle that in your app. The [sample app](SampleApp/README.md) shows a `401 → refresh → retry once` flow.
+
+## Sample app
+
+[SampleApp](SampleApp/README.md) is a SwiftUI app that demonstrates all modules against an offline `URLProtocol` stub. Run it with:
+
+```bash
+open SampleApp/SampleApp.xcodeproj
+```
+
+## Build and test
+
+From the repository root:
+
+```bash
+swift build
+swift test
+swift test --filter LoggerTests
+```
+
+`swift test` builds and runs on the Mac host; no simulator or device is required.
+
+## Contributing
+
+Follow the architecture, coding, and test conventions in [AGENTS.md](AGENTS.md). Keep the single SPM target and zero-dependency rules intact.

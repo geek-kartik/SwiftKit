@@ -10,7 +10,9 @@ Monitors system network-path connectivity using Apple's `Network` framework (`NW
 - Delivers observer callbacks only when the status actually changes.
 - Keeps `NWPathMonitor` implementation details internal.
 
-> **Note:** This module reports the operating system's network-path status. A `.connected` status means the system has a satisfied path; it does **not** guarantee internet reachability or backend availability.
+> **Note:** This module reports the operating system's network-path status. A `.connected` status means the system has a satisfied path; it does **not** guarantee internet reachability or backend availability. Interface types (Wi-Fi/cellular) are not exposed.
+
+No configuration is required; the monitor is created automatically during SDK initialization.
 
 ## Apple Frameworks
 - `Network` (`NWPathMonitor`, `NWPath.Status`)

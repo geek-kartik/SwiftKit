@@ -1,71 +1,89 @@
-# SwiftKit Sample Application
+# SwiftKit Sample App
 
-A production-quality iOS SwiftUI sample application demonstrating the integration and real-world consumption of the **SwiftKit SDK** using its public APIs.
+A SwiftUI app (iOS 15+) that demonstrates all SwiftKit modules through the SDK's public APIs. It runs fully offline: a custom `URLProtocol` intercepts requests to `https://sample.swiftkit.test`, so no backend or API keys are needed.
 
----
+See the [root README](../README.md) for SDK installation and module documentation.
 
-## 1. Demonstrated Modules & Capabilities
+## Prerequisites
 
-| Module | Public Interface | Demonstrated Features |
-|---|---|---|
-| **Secure Storage** | `SecureStorageProtocol` | • Keychain-backed string persistence (`setString`, `string`)<br>• `Codable` struct round-trip persistence (`setCodable`, `codable`)<br>• Raw binary `Data` storage (`setData`, `data`)<br>• Key existence verification (`contains`)<br>• Single key deletion (`remove`) & batch wiping (`removeAll`)<br>• Error handling for missing keys (`itemNotFound`), invalid keys, and storage failures |
-| **Device Information** | `DeviceInfoProtocol` | • Hardware model identifier (`deviceModel`)<br>• OS version string (`osVersion`)<br>• App marketing version (`appVersion`) and build number (`buildNumber`)<br>• Host application display name (`appName`) and bundle identifier (`bundleIdentifier`)<br>• Simulator detection flag (`isSimulator`) and debug build flag (`isDebugBuild`)<br>• Dynamic version evaluation tool (`isAppVersionAtLeast`, `isUpdateRequired`, `isOSVersionAtLeast`) |
-| **Connectivity Monitoring** | `ConnectivityMonitorProtocol` | • Live network path status (`currentStatus`: `.connected`, `.disconnected`, `.unknown`)<br>• Monitoring lifecycle management (`start()`, `stop()`, `isMonitoring`)<br>• Observer registration and teardown (`addObserver`, `removeObserver`, `ConnectivityObservationToken`)<br>• Thread-safe event dispatch to MainActor UI with transition history timeline |
-| **Logging** | `LoggerProtocol` | • Structured logging across all severity levels: `debug`, `info`, `warning`, `error`, `none`<br>• Origin source context tracking (file, function, line)<br>• Dynamic log dispatch with level picker<br>• Automatic sensitive token and email redaction demonstration via `DataMasker` |
-| **Session Management** | `SessionManagerProtocol` | • Session creation, restoration, validation, and logout<br>• Synchronous refresh and async refresh via `SessionTokenRefreshHandler`<br>• Observer events for authenticated, refreshed, expired, logged out, and unauthorized transitions<br>• Masked bearer-token display using `DataMasker`<br>• Simulated HTTP 401 handling through `handleUnauthorized()` |
-| **Networking** | `NetworkClientProtocol` | • GET/POST/PUT/PATCH/DELETE against an offline `URLProtocol` stub<br>• JSON request encoding and typed response decoding<br>• Automatic bearer header injection through `NetworkConfiguration.tokenProvider`<br>• `NetworkError` handling for 401, 404, 500, and decoding failures<br>• `onError` / `onAuthenticationFailure` callback events<br>• App-level `401 → session.refreshSession() → retry once` flow |
-| **Core Architecture** | `SwiftKit`, `SwiftKitConfiguration` | • Centralized lifecycle initialization (`SwiftKit.initialize(configuration:)`)<br>• Validated configuration with environment settings (`.development`)<br>• Network configuration and session refresh-handler injection<br>• Public facade singleton access (`SwiftKit.shared`) |
+- Xcode 15.0+ with an iOS 15.0+ simulator
+- macOS with command-line tools for `xcodebuild`
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) only if you want to regenerate the project from `project.yml` (the committed `SampleApp.xcodeproj` is ready to use)
 
----
+## Build and run
 
-## 2. Architecture & Design Patterns
+Open `SampleApp/SampleApp.xcodeproj`, select the **SampleApp** scheme and a simulator, then run. The SDK is included as a local Swift package (`path: ..`) via `project.yml`.
 
-The sample application follows clean MVVM + Service Layer architecture:
+From the repository root:
 
-- **App Initialization (`App/SampleApp.swift`)**:
-  Initializes `SwiftKit` on startup using `SwiftKitConfiguration` with strict parameter validation and error handling.
-- **Service Layer (`Services/SDKService.swift`)**:
-  Implements `SDKServiceProtocol` exposing public SDK facade references (`SwiftKit.shared.*`) to enable seamless dependency injection and testability.
-- **ViewModels (`ViewModels/`)**:
-  - `SecureStorageViewModel`: `@MainActor` class managing Keychain CRUD, state feedback, and `SampleSessionProfile` serialization.
-  - `DeviceInfoViewModel`: `@MainActor` class managing metadata loading and real-time version comparisons.
-  - `ConnectivityViewModel`: `@MainActor` class managing network path observation, token lifecycle, and transition events.
-  - `LoggingViewModel`: `@MainActor` class managing log triggers, level selection, and data masking demonstrations.
-  - `SessionViewModel`: `@MainActor` class managing session lifecycle actions, observer events, and 401 simulation.
-  - `NetworkingViewModel`: `@MainActor` class managing HTTP verbs, JSON mapping, callback events, and refresh-after-401 retries.
-- **Offline Backend (`Services/SampleBackend.swift`)**:
-  - `SampleBackend`: actor-backed deterministic stub with token-expiry simulation.
-  - `SampleURLProtocol`: intercepts `https://sample.swiftkit.test` requests so every demo runs without a backend.
-- **Views (`Views/`)**:
-  - `DashboardView`: Comprehensive status overview, live metrics, and direct navigation links to each module.
-  - `SecureStorageView`: Interactive Keychain CRUD console.
-  - `DeviceInfoView`: Structured system metrics and version gating testing tool.
-  - `ConnectivityView`: Real-time path status badge, controls, and event log.
-  - `LoggingView`: Predefined level triggers, custom dispatcher, and in-app log console.
-  - `SessionView`: Session state card, lifecycle controls, masked token display, and observer timeline.
-  - `NetworkingView`: Request builder, quick scenarios, decoded response, callback feed, and call history.
-
----
-
-## 3. Building and Running
-
-### Prerequisites
-- macOS 14.0+
-- Xcode 15.0+ (iOS 15.0+ Simulator SDK)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
-
-### Project Generation
-From the `SampleApp` directory:
 ```bash
-xcodegen generate
+xcodebuild build -project SampleApp/SampleApp.xcodeproj \
+  -scheme SampleApp \
+  -destination "generic/platform=iOS Simulator" \
+  CODE_SIGNING_ALLOWED=NO
 ```
 
-### Build with xcodebuild
+Replace the destination with an installed simulator to run unit tests, for example:
+
 ```bash
-xcodebuild build -project SampleApp/SampleApp.xcodeproj -scheme SampleApp -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO
+xcodebuild test -project SampleApp/SampleApp.xcodeproj \
+  -scheme SampleApp \
+  -destination "platform=iOS Simulator,name=iPhone 17" \
+  CODE_SIGNING_ALLOWED=NO
 ```
 
-### Run Unit Tests
-```bash
-xcodebuild test -project SampleApp/SampleApp.xcodeproj -scheme SampleApp -destination "platform=iOS Simulator,name=iPhone 17" CODE_SIGNING_ALLOWED=NO
+`swift build` and `swift test` at the repository root build only the SDK package; the sample app has no `Package.swift` and must be built with Xcode.
+
+## Configuration
+
+No environment variables, secrets, or `.env` files are required. Setup lives in `Sources/App/SampleApp.swift`:
+
+| Setting | Value |
+|---|---|
+| OSLog subsystem / category | `com.swiftkit.sampleapp` / `SampleApp` |
+| Keychain service | `com.swiftkit.sampleapp.storage` |
+| Network base URL | `https://sample.swiftkit.test` |
+| Default header | `X-Sample-App: SwiftKit-Sample` |
+| Accessibility | `.afterFirstUnlockThisDeviceOnly` |
+| Session refresh | `SampleSessionRefreshHandler` (calls the offline backend) |
+
+`SampleURLProtocol` in `Sources/Services/SampleBackend.swift` is registered at launch and answers:
+
+| Path | Behavior |
+|---|---|
+| `/v1/auth/refresh` | Issues refreshed tokens; first call uses stale-token simulation |
+| `/v1/protected` | Returns 401 until the token has been refreshed |
+| `/v1/failure` | 500 |
+| `/v1/bad-json` | Malformed JSON |
+| `/v1/not-found` | 404 |
+| Other `/v1/...` paths | Successful JSON response |
+
+## What the app demonstrates
+
+| Module | Flow |
+|---|---|
+| Core | `SwiftKit.initialize(configuration:)` at launch; `SDKService` wraps `SwiftKit.shared` for injection into view models |
+| Secure Storage | Keychain string/data/`Codable` round trips, `contains`, `remove`, `removeAll`; the app validates empty input locally |
+| Device Info | Metadata display and `isUpdateRequired`, `isAppVersionAtLeast`, `isOSVersionAtLeast` checks |
+| Connectivity | `start`/`stop`, observer tokens, status timeline; callbacks hop to the main actor for UI |
+| Logger | All severity levels, custom `log` with source context, and masking demo with `DataMasker` |
+| Session | Start, restore, sync and async refresh, observers, expiry, logout, and simulated 401 handling |
+| Networking | All five HTTP verbs, JSON encode/decode, bearer token from `tokenProvider`, error callbacks, and app-level `401 → refreshSession() → retry once` |
+
+## Project layout
+
+```text
+SampleApp/
+├── project.yml                # XcodeGen spec (local SwiftKit package)
+├── SampleApp.xcodeproj
+├── Resources/Info.plist
+├── Sources/
+│   ├── App/SampleApp.swift    # SDK setup and app entry point
+│   ├── Services/              # SDKService facade wrapper, offline backend
+│   ├── Models/                # Sample Codable profile
+│   ├── ViewModels/            # @MainActor state per module
+│   └── Views/                 # Dashboard plus one screen per module
+└── Tests/SampleAppTests/      # ViewModel tests with mocks and URLProtocol tests
 ```
+
+Synchronous `refreshSession(accessToken:refreshToken:expiresAt:)` uses literal values from the UI; only the async `refreshSession()` uses the configured refresh handler. Token refresh and 401 retry are implemented by the sample, not by SwiftKit.

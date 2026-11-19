@@ -7,15 +7,12 @@ Manages the authenticated user session: token lifecycle, expiration tracking, se
 - Persists the session in the Keychain via `SecureStorageProtocol`.
 - Tracks expiration lazily and supports explicit lifecycle validation.
 - Renews credentials through an injectable `SessionTokenRefreshHandler`, skipping refresh while offline.
-- Clears the session on logout and HTTP 401 unauthorized responses.
+- Clears the session on `logout()` and provides `handleUnauthorized()` for HTTP 401 responses (call it from your app; networking does not call it automatically).
 - Notifies observers of authentication transitions, suppressing duplicate states.
 - Keeps Keychain and storage details internal.
 
 ## Apple Frameworks
 - `Foundation`
-
-## Module Owner
-Developer 3
 
 ## Architecture
 - `Public/SessionManagerProtocol.swift`: Public session management contract.
@@ -111,10 +108,12 @@ let configuration = SwiftKitConfiguration(sessionTokenRefreshHandler: AppRefresh
 - `restoreSession()` returns `nil` when nothing is stored and retains an already-expired session as
   `.expired` so it can later be refreshed.
 - `refreshSession(...)` requires a stored session and preserves the existing user identifier.
-- `refreshSession()` skips the exchange when connectivity reports `.disconnected`.
+- `refreshSession()` skips the exchange only when connectivity is available and reports `.disconnected`; it requires a refresh token and a configured handler.
 - `logout()` cancels any in-flight refresh and is tolerant of an absent stored session.
 - `validateExpiry()` and `handleUnauthorized()` are idempotent and safe to call repeatedly.
 - Observers are only notified when the resulting authentication state actually changes.
+
+There is no idle-timeout mechanism; expiry is based on `expiresAt` and explicit `validateExpiry()` calls. `handleUnauthorized()` is not called by the networking client automatically.
 
 ## Threading
 - Session and observer state is protected by `ThreadSafeBox`.

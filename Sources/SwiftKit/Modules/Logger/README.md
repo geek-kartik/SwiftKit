@@ -1,50 +1,49 @@
 # Logger Module
 
-## Purpose & Scope
-Provides unified, performant logging backed by Apple's `OSLog` (`os.Logger`) framework with automatic data redaction for security-sensitive tokens and credentials. The module is consumed by every other SDK module through the `LoggerProtocol` abstraction.
+Structured diagnostics backed by Apple's `OSLog` (`os.Logger`). SDK modules take a `LoggerProtocol` dependency instead of depending on the concrete logger.
 
-## Apple Frameworks
-- `OSLog` (`os.Logger`, `OSLogType`)
-- `Foundation`
+## Public API
 
-## Architecture
-- `Public/LoggerProtocol.swift`: Public logging contract (`debug`, `info`, `warning`, `error`, `log`).
-- `Public/LogLevel.swift`: Public severity enum (`.debug`, `.info`, `.warning`, `.error`, `.none`).
-- `Models/LogConfiguration.swift`: Operational configuration value type.
-- `Internal/OSLogger.swift`: Concrete `LoggerProtocol` implementation. Delegates dispatch to an internal `LogOutput`, allowing filtering and sanitization to be unit tested without reading the system Console.
+```swift
+public protocol LoggerProtocol: Sendable {
+    func log(_ message: String, level: LogLevel, file: String, function: String, line: Int)
+    func debug(_ message: String, file: String, function: String, line: Int)
+    func info(_ message: String, file: String, function: String, line: Int)
+    func warning(_ message: String, file: String, function: String, line: Int)
+    func error(_ message: String, file: String, function: String, line: Int)
+}
+```
 
-## Supported Log Levels
-| Level | OSLog mapping | Purpose |
-|---|---|---|
-| `.debug` | `debug` | Development diagnostics |
-| `.info` | `info` | Informational lifecycle events |
-| `.warning` | `notice` | Non-fatal anomalies |
-| `.error` | `error` | Failure conditions |
-| `.none` | none | Disables all dispatch when used as `minimumLevel` |
+Convenience methods default `file`, `function`, and `line` to the call site. `LogLevel` cases are `.debug`, `.info`, `.warning`, `.error`, and `.none`. `.none` disables dispatch when used as the minimum level.
+
+| Log level | OSLog type |
+|---|---|
+| `.debug` | `debug` |
+| `.info` | `info` |
+| `.warning` | `notice` |
+| `.error` | `error` |
 
 ## Configuration
-`LogConfiguration` supports:
-- `subsystem`: OSLog subsystem identifier.
-- `category`: OSLog category.
-- `minimumLevel`: Lowest severity that is dispatched.
-- `isMaskingEnabled`: Redacts sensitive patterns before dispatch (default `true`).
-- `isEnabled`: Master switch for logging (default `true`).
 
-`SwiftKitConfiguration` maps `subsystem`, `category`, `minimumLogLevel`, `isMaskingEnabled`, and `isLoggingEnabled` onto `LogConfiguration` during SDK initialization.
+`SwiftKitConfiguration` sets `subsystem`, `category`, `minimumLogLevel` (default `.debug`), `isMaskingEnabled` (default `true`), and `isLoggingEnabled` (default `true`) on the internal `LogConfiguration`. Configuration is applied once during `SwiftKit.initialize(configuration:)`.
 
-## Usage Example
+## Usage
+
 ```swift
 import SwiftKit
 
 let logger = SwiftKit.shared.logger
-
-logger.debug("Debug message")
+logger.debug("Cache warmed")
 logger.info("SDK initialized")
-logger.warning("Connectivity is unstable")
-logger.error("Network request failed")
+logger.warning("Network path unavailable")
+logger.error("Request failed")
+
+// Explicit source context (the convenience methods supply these automatically):
+logger.log("Retrying", level: .info, file: #fileID, function: #function, line: #line)
 ```
 
-Dependency injection for module authors:
+Modules that accept a logger should depend on the protocol:
+
 ```swift
 internal final class SomeModule {
     private let logger: LoggerProtocol
@@ -55,9 +54,23 @@ internal final class SomeModule {
 }
 ```
 
-## Security & Privacy
-- Dynamic message bodies are emitted with OSLog `privacy: .private`; only the level, source file, line, and function are public.
-- `DataMasker` redacts Bearer tokens, email addresses, and sensitive JSON keys before dispatch when `isMaskingEnabled` is enabled.
-- Never pass authentication tokens, passwords, PINs, card data, Authorization headers, or raw request/response bodies as log messages.
-- Privacy annotations are used in addition to masking, so sensitive dynamic values are not exposed even if masking is misconfigured.
-- Logging is safe by default: masking and logging are both enabled unless explicitly disabled by the host application.
+## Files and dependencies
+
+- `Public/LoggerProtocol.swift`, `Public/LogLevel.swift`: public contract and severity levels.
+- `Models/LogConfiguration.swift`: immutable configuration value.
+- `Internal/OSLogger.swift`: filters by level, applies masking, then writes through an internal `LogOutput`. `OSLogOutput` maps levels and marks dynamic message text with OSLog `.private` privacy.
+- Uses `OSLog`, `Foundation`, and the shared `DataMasker`.
+
+## Security notes
+
+- `DataMasker` redacts Bearer tokens, emails, and sensitive JSON keys before dispatch when masking is enabled. OSLog `.private` interpolation is an additional layer.
+- Do not pass tokens, passwords, card data, Authorization headers, or raw request/response bodies as log messages.
+- Masking and logging are enabled by default; keep them enabled in production.
+
+## Testing
+
+`OSLogger` accepts an injected `LogOutput`, so filtering and masking are tested without reading the system console.
+
+```bash
+swift test --filter LoggerTests
+```
