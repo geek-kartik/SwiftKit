@@ -1,7 +1,7 @@
 import Foundation
 
 /// Header names that commonly carry credentials and must never be shown verbatim in
-/// diagnostics, the inspector UI, or exported cURL commands.
+/// diagnostics or exported cURL commands.
 internal enum SensitiveHeaders {
     /// Lowercase field names whose values are replaced with `[REDACTED]`.
     internal static let names: Set<String> = [

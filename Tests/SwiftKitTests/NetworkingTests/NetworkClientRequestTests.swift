@@ -587,6 +587,31 @@ final class NetworkClientRequestTests: XCTestCase {
         XCTAssertEqual(response.data, Data(#"{"identifier":"acc_1"}"#.utf8))
     }
 
+    func testSessionConfigurationFactoryInstallsCustomProtocolClasses() async throws {
+        URLProtocolStub.handler.write { request in
+            (
+                makeHTTPResponse(url: request.url!, statusCode: 202),
+                Data(#"{"source":"factory"}"#.utf8)
+            )
+        }
+        defer { URLProtocolStub.handler.write(nil) }
+
+        let configuration = NetworkConfiguration(
+            baseURL: baseURL,
+            sessionConfigurationFactory: {
+                let sessionConfiguration = URLSessionConfiguration.ephemeral
+                sessionConfiguration.protocolClasses = [URLProtocolStub.self]
+                return sessionConfiguration
+            }
+        )
+        let client = URLSessionNetworkClient(configuration: configuration, logger: MockLogger())
+
+        let response = try await client.send(NetworkRequest(path: "/v1/accounts"))
+
+        XCTAssertEqual(response.statusCode, 202)
+        XCTAssertEqual(response.data, Data(#"{"source":"factory"}"#.utf8))
+    }
+
     // MARK: - Helpers
 
     private func assertNetworkError(

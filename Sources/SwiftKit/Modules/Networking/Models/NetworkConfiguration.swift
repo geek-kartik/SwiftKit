@@ -15,17 +15,16 @@ public struct NetworkConfiguration: Sendable {
 
     /// Controls how much diagnostic detail the networking client writes to the logger.
     ///
-    /// Verbose output is intended for local debugging in Xcode. It is emitted through the
-    /// SDK's ``LoggerProtocol`` and is always passed through ``DataMasker``, but it includes
-    /// request and response bodies, so keep it disabled in production builds.
+    /// - Important: Reserved for a future logging feature. The client does not read this value,
+    ///   so it currently has no effect.
     public enum LogVerbosity: String, Sendable, Equatable, CaseIterable {
         /// Disables all networking diagnostics.
         case off
 
-        /// Logs one redacted summary line per request, for example `GET api.example.com -> 200 in 12 ms`.
+        /// Reserved for a redacted one-line request summary.
         case summary
 
-        /// Logs a formatted, multi-line request/response block with masked headers and bodies.
+        /// Reserved for a formatted request/response block with masked headers and bodies.
         case verbose
     }
 
@@ -49,21 +48,38 @@ public struct NetworkConfiguration: Sendable {
     /// The default cache policy applied to requests without a request-level override.
     public let cachePolicy: URLRequest.CachePolicy
 
+    /// Produces the URL session configuration used by the production client.
+    ///
+    /// Supply a factory to register custom `URLProtocol` subclasses, configure a proxy, or
+    /// provide a test session. The factory must return a fresh configuration on every call;
+    /// the client applies ``timeoutInterval`` and ``cachePolicy`` and disables the URL cache
+    /// on the returned value.
+    ///
+    /// When `nil`, the client uses an ephemeral configuration.
+    public let sessionConfigurationFactory: (@Sendable () -> URLSessionConfiguration)?
+
     /// Produces the current bearer token applied to every request.
     public let tokenProvider: (@Sendable () async -> String?)?
 
-    /// Refreshes the expired session token. Invoked on a `401` response.
+    /// Reserved for callers that refresh tokens outside the client.
+    ///
+    /// - Important: The client does not invoke this closure. Use
+    ///   ``NetworkConfiguration/onAuthenticationFailure`` for auth handling and handle
+    ///   refresh/retry in your app.
     public let refreshToken: (@Sendable () async throws -> Void)?
 
     /// Whether failure details are logged. Defaults to `false`.
+    ///
+    /// - Important: Reserved for a future logging feature. The client does not read this value,
+    ///   so it currently has no effect.
     public let logErrorDetails: Bool
 
     /// Invoked for every failed transaction, including status, transport, validation, and
     /// decoding failures.
     ///
     /// Use this to centralize cross-cutting error handling. For example, an app can present a
-    /// global banner or refresh telemetry. The callback receives the same structured
-    /// ``NetworkTransaction`` that the inspector records.
+    /// global banner or refresh telemetry. The callback receives the structured
+    /// ``NetworkTransaction`` built for the failed request.
     public let onError: TransactionHandler?
 
     /// Invoked specifically for authentication and authorization failures (`401` and `403`).
@@ -102,11 +118,13 @@ public struct NetworkConfiguration: Sendable {
     ///   - acceptableStatusCodes: The accepted success range. Defaults to `200..<300`.
     ///   - cachePolicy: The default cache policy. Defaults to `.reloadIgnoringLocalCacheData`
     ///     because banking responses should not be reused from the local HTTP cache.
-    ///   - logVerbosity: The diagnostic detail written to the logger. Defaults to `.summary`.
-    ///   - maxLoggedBodyBytes: The maximum body bytes captured by verbose logs. Defaults to `8_192`.
-    ///   - inspector: Session inspector settings. Defaults to ``NetworkInspectorConfiguration/disabled``.
     ///   - onError: A callback invoked for every failed transaction. Defaults to `nil`.
     ///   - onAuthenticationFailure: A callback invoked for `401` and `403` failures. Defaults to `nil`.
+    ///   - tokenProvider: Produces the current bearer token for each request. Defaults to `nil`.
+    ///   - refreshToken: Reserved for callers that refresh tokens outside the client. Defaults to `nil`.
+    ///   - logErrorDetails: Whether failure details are logged. Defaults to `false`.
+    ///   - sessionConfigurationFactory: Produces the URL session configuration. Defaults to `nil`,
+    ///     which uses an ephemeral configuration.
     ///   - decoderFactory: A factory producing a fresh JSON decoder. Defaults to `JSONDecoder()`.
     ///   - encoderFactory: A factory producing a fresh JSON encoder. Defaults to `JSONEncoder()`.
     public init(
@@ -120,6 +138,7 @@ public struct NetworkConfiguration: Sendable {
         tokenProvider: (@Sendable () async -> String?)? = nil,
         refreshToken: (@Sendable () async throws -> Void)? = nil,
         logErrorDetails: Bool = false,
+        sessionConfigurationFactory: (@Sendable () -> URLSessionConfiguration)? = nil,
         decoderFactory: @escaping @Sendable () -> JSONDecoder = { JSONDecoder() },
         encoderFactory: @escaping @Sendable () -> JSONEncoder = { JSONEncoder() }
     ) {
@@ -133,6 +152,7 @@ public struct NetworkConfiguration: Sendable {
         self.tokenProvider = tokenProvider
         self.refreshToken = refreshToken
         self.logErrorDetails = logErrorDetails
+        self.sessionConfigurationFactory = sessionConfigurationFactory
         self.decoderFactory = decoderFactory
         self.encoderFactory = encoderFactory
     }

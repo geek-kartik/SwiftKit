@@ -15,12 +15,11 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
     /// - Parameters:
     ///   - configuration: The networking configuration.
     ///   - logger: Logger receiving redacted request diagnostics.
-    ///   - inspector: Optional transaction sink for the SDK network inspector.
     internal convenience init(
         configuration: NetworkConfiguration = .default,
-        logger: LoggerProtocol,
+        logger: LoggerProtocol
     ) {
-        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        let sessionConfiguration = configuration.sessionConfigurationFactory?() ?? URLSessionConfiguration.ephemeral
         sessionConfiguration.timeoutIntervalForRequest = configuration.timeoutInterval
         sessionConfiguration.requestCachePolicy = configuration.cachePolicy
         sessionConfiguration.urlCache = nil
@@ -38,7 +37,6 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
     ///   - configuration: The networking configuration.
     ///   - logger: Logger receiving redacted request diagnostics.
     ///   - transport: The transport used to execute prepared requests.
-    ///   - inspector: Optional transaction sink for the SDK network inspector.
     internal init(
         configuration: NetworkConfiguration,
         logger: LoggerProtocol,
@@ -92,8 +90,6 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
             throw networkError
         }
 
-        let host = urlRequest.url?.host ?? "unknown"
-
         let data: Data
         let urlResponse: URLResponse
         do {
@@ -128,8 +124,6 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
             url: httpResponse.url
         )
 
-        let elapsedMilliseconds = String(format: "%.0f", Date().timeIntervalSince(startedAt) * 1000)
-
         guard configuration.acceptableStatusCodes.contains(response.statusCode) else {
             let networkError = NetworkError.httpStatus(response)
             await capture(
@@ -152,7 +146,7 @@ internal final class URLSessionNetworkClient: NetworkClientProtocol, Sendable {
         return response
     }
 
-    /// Publishes a transaction to the inspector and error callbacks, using the prepared request
+    /// Publishes a transaction to the configured error callbacks, using the prepared request
     /// when one exists.
     private func capture(
         urlRequest: URLRequest?,
