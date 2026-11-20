@@ -2,10 +2,10 @@ import Foundation
 
 /// A complete, structured record of one HTTP transaction handled by ``NetworkClientProtocol``.
 ///
-/// Transactions are captured by the SDK inspector, which is disabled unless
-/// ``NetworkInspectorConfiguration/isEnabled`` is `true`. Unlike console logging, a transaction
-/// keeps the resolved URL, merged headers, and raw bodies so a debug screen can render them and
-/// generate an equivalent cURL command.
+/// Transactions are created for failed requests and passed to ``NetworkConfiguration/onError``
+/// and ``NetworkConfiguration/onAuthenticationFailure``. They keep the resolved URL, merged
+/// headers, and raw bodies so an app can present diagnostics or generate an equivalent cURL
+/// command.
 public struct NetworkTransaction: Identifiable, Sendable, Equatable {
     public enum SensitiveDataPolicy: Sendable { case redact, include }
     /// A captured request body.
@@ -264,7 +264,7 @@ public struct NetworkTransaction: Identifiable, Sendable, Equatable {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
-    /// Returns a copy whose bodies are clipped to the inspector capture limit.
+    /// Returns a copy whose bodies are clipped to a maximum capture size.
     /// - Parameter maxBytes: The maximum retained bytes per body.
     /// - Returns: A transaction suitable for storage.
     internal func limited(toBodyBytes maxBytes: Int) -> NetworkTransaction {

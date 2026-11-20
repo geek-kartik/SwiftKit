@@ -49,4 +49,13 @@ final class SampleBackendURLProtocolTests: XCTestCase {
 
         XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 500)
     }
+
+    func testNotFoundEndpointReturnsHTTP404() async throws {
+        let url = try XCTUnwrap(URL(string: "https://sample.swiftkit.test/v1/not-found"))
+        let (data, response) = try await URLSession.shared.data(from: url)
+
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 404)
+        let decoded = try JSONDecoder().decode(SampleAPIResponse.self, from: data)
+        XCTAssertEqual(decoded.message, "Resource not found.")
+    }
 }

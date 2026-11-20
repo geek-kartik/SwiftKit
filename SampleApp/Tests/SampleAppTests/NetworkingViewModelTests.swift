@@ -64,6 +64,9 @@ final class NetworkingViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.responseText.contains("Mock response"))
         XCTAssertFalse(viewModel.isErrorMessage)
         XCTAssertEqual(viewModel.callHistory.first?.method, .get)
+        XCTAssertEqual(viewModel.callHistory.first?.statusCode, 200)
+        XCTAssertEqual(viewModel.lastResponse?.statusCode, 200)
+        XCTAssertEqual(viewModel.lastResponse?.byteCount, MockNetworkClient.successResponse().data.count)
     }
 
     func testPostRequestEncodesJSONBody() async {
@@ -142,6 +145,70 @@ final class NetworkingViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.callHistory.isEmpty)
         XCTAssertTrue(viewModel.callbackEvents.isEmpty)
+    }
+
+    func testErrorRecordUsesAttemptedMethodAndPath() async {
+        let client = MockNetworkClient { _ in
+            throw NetworkError.httpStatus(
+                NetworkResponse(
+                    statusCode: 500,
+                    headers: ["Content-Type": "application/json"],
+                    data: Data(#"{"status":"error","message":"Simulated server failure."}"#.utf8)
+                )
+            )
+        }
+        viewModel = NetworkingViewModel(networkClient: client, session: mockSession, logger: mockLogger)
+        viewModel.selectedMethod = .get
+        viewModel.path = "/v1/items"
+
+        await viewModel.sendRequest(method: .post, path: "/v1/failure", body: "ignored")
+
+        let record = viewModel.callHistory.first
+        XCTAssertEqual(record?.method, .post)
+        XCTAssertEqual(record?.path, "/v1/failure")
+        XCTAssertEqual(record?.statusCode, 500)
+        XCTAssertTrue(record?.isError == true)
+        XCTAssertTrue(viewModel.statusMessage.contains("Simulated server failure."))
+        XCTAssertEqual(viewModel.lastResponse?.statusCode, 500)
+    }
+
+    func testRefreshFailureClearsSessionAndReportsError() async {
+        let client = MockNetworkClient { _ in
+            throw NetworkError.httpStatus(NetworkResponse(statusCode: 401, data: Data()))
+        }
+        mockSession.asyncRefreshError = SessionError.refreshFailed
+        viewModel = NetworkingViewModel(networkClient: client, session: mockSession, logger: mockLogger)
+
+        await viewModel.sendRequest(method: .get, path: "/v1/protected")
+
+        XCTAssertEqual(mockSession.asyncRefreshCallCount, 1)
+        XCTAssertEqual(mockSession.handleUnauthorizedCallCount, 1)
+        XCTAssertTrue(viewModel.isErrorMessage)
+        XCTAssertTrue(viewModel.statusMessage.contains("session was cleared"))
+        XCTAssertEqual(viewModel.bearerStatus, "No active bearer token")
+    }
+
+    func testDiagnosticsToggleControlsLoggerOutput() async {
+        await viewModel.sendRequest(method: .get, path: "/v1/items")
+        XCTAssertTrue(mockLogger.loggedMessages.contains { $0.message.contains("GET /v1/items") })
+        let loggedBefore = mockLogger.loggedMessages.count
+
+        viewModel.logsDiagnostics = false
+        await viewModel.sendRequest(method: .get, path: "/v1/items")
+
+        XCTAssertEqual(mockLogger.loggedMessages.count, loggedBefore)
+    }
+
+    func testStartDemoSessionAddsBearerToken() {
+        try? mockSession.logout()
+        viewModel.refreshState()
+        XCTAssertEqual(viewModel.bearerStatus, "No active bearer token")
+
+        viewModel.startDemoSession()
+
+        XCTAssertEqual(mockSession.startSessionCallCount, 2)
+        XCTAssertEqual(viewModel.bearerStatus, "Bearer [REDACTED]")
+        XCTAssertTrue(viewModel.statusMessage.contains("Demo session started"))
     }
 
     private static func ensureSDKInitialized() {
