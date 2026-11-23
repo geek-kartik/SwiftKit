@@ -17,9 +17,21 @@ public struct NetworkingView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
-                Text("NetworkConfiguration.tokenProvider reads the active Session automatically. Start a session in the Session tab to see the Authorization header applied.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+
+                if viewModel.bearerStatus == "No active bearer token" {
+                    Button {
+                        viewModel.startDemoSession()
+                    } label: {
+                        Label("Start Demo Session", systemImage: "person.badge.key.fill")
+                    }
+                    Text("Start a session here or in the Session tab. NetworkConfiguration.tokenProvider reads SessionManagerProtocol and adds the Authorization header to every request.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("NetworkConfiguration.tokenProvider applied this token as an Authorization header on outgoing requests.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
 
             Section(header: Text("Request Builder")) {
@@ -34,26 +46,64 @@ public struct NetworkingView: View {
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
 
-                TextField("JSON body message", text: $viewModel.bodyText)
+                Text("Headers · one Name: Value pair per line")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                TextEditor(text: $viewModel.headersText)
+                    .font(.system(.footnote, design: .monospaced))
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
+                    .frame(minHeight: 56)
 
-                Button {
-                    Task { await viewModel.send() }
-                } label: {
-                    HStack {
-                        Image(systemName: "paperplane.fill")
-                        if viewModel.isLoading {
-                            ProgressView()
-                        } else {
-                            Text("Send Request")
-                                .fontWeight(.semibold)
-                        }
+                Text("JSON body · sent as raw JSON")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                TextEditor(text: $viewModel.bodyText)
+                    .font(.system(.footnote, design: .monospaced))
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                    .frame(minHeight: 64)
+
+                TextField("Timeout in seconds", text: $viewModel.timeoutText)
+                    .keyboardType(.decimalPad)
+
+                Picker("Cache policy", selection: $viewModel.cachePolicy) {
+                    ForEach(SampleCachePolicy.allCases) { policy in
+                        Text(policy.rawValue).tag(policy)
                     }
-                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isLoading)
+
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await viewModel.send() }
+                    } label: {
+                        Label("Send Request", systemImage: "paperplane.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.isLoading)
+
+                    if viewModel.isLoading {
+                        Button(role: .cancel) {
+                            viewModel.cancelActiveRequest()
+                        } label: {
+                            Label("Cancel", systemImage: "xmark.circle.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                    }
+                }
+
+                if viewModel.isLoading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("In flight: \(viewModel.inFlightCount)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
 
             Section(header: Text("Quick Scenarios")) {
@@ -72,8 +122,8 @@ public struct NetworkingView: View {
                 Button("DELETE /v1/items/1") {
                     Task { await viewModel.sendRequest(method: .delete, path: "/v1/items/1") }
                 }
-                Button("401 → Refresh → Retry (/v1/protected)") {
-                    Task { await viewModel.sendRequest(method: .get, path: "/v1/protected") }
+                Button("404 Not Found (/v1/not-found)") {
+                    Task { await viewModel.sendRequest(method: .get, path: "/v1/not-found") }
                 }
                 Button("HTTP 500 (/v1/failure)") {
                     Task { await viewModel.sendRequest(method: .get, path: "/v1/failure") }
@@ -81,10 +131,29 @@ public struct NetworkingView: View {
                 Button("Decoding Failure (/v1/bad-json)") {
                     Task { await viewModel.sendRequest(method: .get, path: "/v1/bad-json") }
                 }
+                Button("401 → Refresh → Retry (/v1/protected)") {
+                    Task { await viewModel.sendProtectedRequest() }
+                }
+
+                Text("The 401 flow is app-level: the screen calls SessionManagerProtocol.refreshSession(), then retries once. The SDK does not retry automatically. Repeated taps are suppressed while an identical request is in flight, and no retry happens after logout or expiry.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            if let response = viewModel.lastResponse {
+                Section(header: Text("Last Response")) {
+                    metadataRow("Status", "HTTP \(response.statusCode)")
+                    metadataRow("Content-Type", response.contentType ?? "—")
+                    metadataRow("Body", "\(response.byteCount) bytes")
+                    metadataRow("Duration", "\(response.elapsedMilliseconds) ms")
+                    if let url = response.url {
+                        metadataRow("URL", url.path)
+                    }
+                }
             }
 
             if !viewModel.responseText.isEmpty {
-                Section(header: Text("Decoded Response")) {
+                Section(header: Text("Response Body")) {
                     Text(viewModel.responseText)
                         .font(.system(.footnote, design: .monospaced))
                         .textSelection(.enabled)
@@ -108,6 +177,16 @@ public struct NetworkingView: View {
                 }
             }
 
+            Section(header: Text("Developer Diagnostics")) {
+                Toggle("Log request results to OSLog", isOn: $viewModel.logsDiagnostics)
+                Text("When enabled, each result is written through LoggerProtocol at info or error level with sensitive values masked. Turn it off to keep request details out of device logs.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                metadataRow("In flight", "\(viewModel.inFlightCount)")
+                metadataRow("Duplicates blocked", "\(viewModel.suppressedDuplicateCount)")
+            }
+
             Section(header: HStack {
                 Text("Call History (\(viewModel.callHistory.count))")
                 Spacer()
@@ -122,11 +201,20 @@ public struct NetworkingView: View {
                         .foregroundColor(.secondary)
                 } else {
                     ForEach(viewModel.callHistory) { record in
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
                                 Text("\(record.method.rawValue) \(record.path)")
                                     .font(.subheadline)
                                     .fontWeight(.medium)
+                                if let statusCode = record.statusCode {
+                                    Text("\(statusCode)")
+                                        .font(.caption2.bold())
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(statusColor(for: statusCode).opacity(0.15))
+                                        .foregroundColor(statusColor(for: statusCode))
+                                        .clipShape(Capsule())
+                                }
                                 Spacer()
                                 Text(record.timestamp.formatted(date: .omitted, time: .standard))
                                     .font(.caption)
@@ -135,7 +223,7 @@ public struct NetworkingView: View {
                             Text(record.detail)
                                 .font(.caption)
                                 .foregroundColor(record.isError ? .red : .secondary)
-                                .lineLimit(2)
+                                .lineLimit(3)
                         }
                     }
                 }
@@ -152,5 +240,24 @@ public struct NetworkingView: View {
             }
         }
         .navigationTitle("Networking Client")
+        .onAppear { viewModel.activate() }
+        .onDisappear { viewModel.cleanup() }
+    }
+
+    private func statusColor(for statusCode: Int) -> Color {
+        if (200..<300).contains(statusCode) { return .green }
+        if (300..<400).contains(statusCode) { return .orange }
+        return .red
+    }
+
+    private func metadataRow(_ title: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(value)
+                .font(.system(.footnote, design: .monospaced))
+                .multilineTextAlignment(.trailing)
+        }
     }
 }

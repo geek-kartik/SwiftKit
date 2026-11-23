@@ -211,15 +211,13 @@ Sample app (Xcode + iOS simulator required):
 
 ```bash
 xcodebuild build -project SampleApp/SampleApp.xcodeproj \
-  -scheme SampleApp -destination "generic/platform=iOS Simulator" \
-  CODE_SIGNING_ALLOWED=NO
+  -scheme SampleApp -destination "generic/platform=iOS Simulator"
 
 xcodebuild test -project SampleApp/SampleApp.xcodeproj \
-  -scheme SampleApp -destination "platform=iOS Simulator,name=iPhone 17" \
-  CODE_SIGNING_ALLOWED=NO
+  -scheme SampleApp -destination "platform=iOS Simulator,name=iPhone 17"
 ```
 
-Use an installed simulator name in the test command. Run `xcodegen generate` from `SampleApp/` only after changing `project.yml`. `swift test` does not build the sample app.
+Use an installed simulator name in the test command. The app target is ad-hoc signed for the simulator with `SampleApp/Resources/SampleApp.entitlements`; Keychain persistence requires that entitlement, so do not build the app with `CODE_SIGNING_ALLOWED=NO`. Run `xcodegen generate` from `SampleApp/` only after changing `project.yml`. `swift test` does not build the sample app.
 
 ---
 

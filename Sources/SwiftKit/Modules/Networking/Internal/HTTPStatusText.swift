@@ -1,6 +1,6 @@
 import Foundation
 
-/// Shared HTTP status and size formatting for console diagnostics and the inspector UI.
+/// Shared HTTP status and size formatting for diagnostics.
 internal enum HTTPStatusText {
     /// A canonical reason phrase for a status code, or `"Unknown"` for unregistered codes.
     /// - Parameter statusCode: The HTTP status code.

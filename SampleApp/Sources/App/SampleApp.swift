@@ -58,6 +58,11 @@ public struct SampleApp: App {
             },
             tokenProvider: {
                 SwiftKit.shared.session.currentSession?.accessToken
+            },
+            sessionConfigurationFactory: {
+                let configuration = URLSessionConfiguration.ephemeral
+                configuration.protocolClasses = [SampleURLProtocol.self]
+                return configuration
             }
         )
 

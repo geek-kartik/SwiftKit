@@ -19,8 +19,7 @@ From the repository root:
 ```bash
 xcodebuild build -project SampleApp/SampleApp.xcodeproj \
   -scheme SampleApp \
-  -destination "generic/platform=iOS Simulator" \
-  CODE_SIGNING_ALLOWED=NO
+  -destination "generic/platform=iOS Simulator"
 ```
 
 Replace the destination with an installed simulator to run unit tests, for example:
@@ -28,9 +27,10 @@ Replace the destination with an installed simulator to run unit tests, for examp
 ```bash
 xcodebuild test -project SampleApp/SampleApp.xcodeproj \
   -scheme SampleApp \
-  -destination "platform=iOS Simulator,name=iPhone 17" \
-  CODE_SIGNING_ALLOWED=NO
+  -destination "platform=iOS Simulator,name=iPhone 17"
 ```
+
+The app target is ad-hoc signed for the simulator and uses `Resources/SampleApp.entitlements`, which grants a Keychain access group. Signing is required: an unsigned simulator app has no Keychain entitlement and every write fails with `errSecMissingEntitlement` (`-34018`), so session persistence cannot work.
 
 `swift build` and `swift test` at the repository root build only the SDK package; the sample app has no `Package.swift` and must be built with Xcode.
 
@@ -46,8 +46,9 @@ No environment variables, secrets, or `.env` files are required. Setup lives in 
 | Default header | `X-Sample-App: SwiftKit-Sample` |
 | Accessibility | `.afterFirstUnlockThisDeviceOnly` |
 | Session refresh | `SampleSessionRefreshHandler` (calls the offline backend) |
+| URL session | `sessionConfigurationFactory` installs `SampleURLProtocol` so the offline backend answers every request |
 
-`SampleURLProtocol` in `Sources/Services/SampleBackend.swift` is registered at launch and answers:
+`SampleURLProtocol` in `Sources/Services/SampleBackend.swift` is installed in the SDK client's URL session configuration and answers:
 
 | Path | Behavior |
 |---|---|
@@ -68,7 +69,7 @@ No environment variables, secrets, or `.env` files are required. Setup lives in 
 | Connectivity | `start`/`stop`, observer tokens, status timeline; callbacks hop to the main actor for UI |
 | Logger | All severity levels, custom `log` with source context, and masking demo with `DataMasker` |
 | Session | Start, restore, sync and async refresh, observers, expiry, logout, and simulated 401 handling |
-| Networking | All five HTTP verbs, JSON encode/decode, bearer token from `tokenProvider`, error callbacks, and app-level `401 → refreshSession() → retry once` |
+| Networking | All five HTTP verbs, raw JSON body passthrough with editable headers, timeout, and cache policy, raw response metadata, bearer token from `tokenProvider`, duplicate suppression and in-flight tracking, cancel, session-aware logout/expiry cancellation, configuration callbacks, 404/500/decoding failures, developer-controlled logging, and app-level `401 → single-flight refreshSession() → retry once` |
 
 ## Project layout
 
@@ -76,7 +77,9 @@ No environment variables, secrets, or `.env` files are required. Setup lives in 
 SampleApp/
 ├── project.yml                # XcodeGen spec (local SwiftKit package)
 ├── SampleApp.xcodeproj
-├── Resources/Info.plist
+├── Resources/
+│   ├── Info.plist
+│   └── SampleApp.entitlements # Keychain access group for simulator builds
 ├── Sources/
 │   ├── App/SampleApp.swift    # SDK setup and app entry point
 │   ├── Services/              # SDKService facade wrapper, offline backend
@@ -86,4 +89,4 @@ SampleApp/
 └── Tests/SampleAppTests/      # ViewModel tests with mocks and URLProtocol tests
 ```
 
-Synchronous `refreshSession(accessToken:refreshToken:expiresAt:)` uses literal values from the UI; only the async `refreshSession()` uses the configured refresh handler. Token refresh and 401 retry are implemented by the sample, not by SwiftKit.
+Synchronous `refreshSession(accessToken:refreshToken:expiresAt:)` uses literal values from the UI; only the async `refreshSession()` uses the configured refresh handler. Concurrent `401`s share one refresh, logout or expiry skips refresh and retry, and a second `401` clears the session. Token refresh and 401 retry are implemented by the sample, not by SwiftKit.

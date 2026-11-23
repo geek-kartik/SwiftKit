@@ -40,6 +40,7 @@ try SwiftKit.initialize(configuration: configuration)
 | `acceptableStatusCodes` | `200..<300` | Statuses returned as responses; others throw `.httpStatus`. |
 | `cachePolicy` | `.reloadIgnoringLocalCacheData` | Default request cache policy. |
 | `tokenProvider` | `nil` | Async closure supplying a bearer token added to outgoing requests. |
+| `sessionConfigurationFactory` | `nil` | Returns the `URLSessionConfiguration` for the client; use it to register `URLProtocol` stubs or a proxy. `nil` uses an ephemeral configuration. |
 | `onError` | `nil` | Async callback for failed transactions. |
 | `onAuthenticationFailure` | `nil` | Async callback for `401`/`403`, in addition to `onError`. |
 | `decoderFactory` / `encoderFactory` | New `JSONDecoder()` / `JSONEncoder()` | Called per operation; Foundation coders are not thread-safe. |
@@ -140,6 +141,21 @@ let network = NetworkConfiguration(
 )
 ```
 
+### Custom URL session
+
+```swift
+let network = NetworkConfiguration(
+    baseURL: URL(string: "https://sample.swiftkit.test"),
+    sessionConfigurationFactory: {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SampleURLProtocol.self]
+        return configuration
+    }
+)
+```
+
+The factory runs once when the client is created and must return a fresh configuration. The client applies `timeoutInterval` and `cachePolicy` and disables the URL cache on the returned value.
+
 ## URL resolution
 
 - Absolute URLs are used as-is and must use `http` or `https`.
@@ -193,7 +209,7 @@ The default command replaces credential headers with `[REDACTED]`. Bodies are ra
 - `Public/`: `NetworkClientProtocol.swift`, `NetworkRequest.swift`, `NetworkResponse.swift`, `NetworkError.swift`, `NetworkTransaction.swift`, `HTTPMethod.swift`.
 - `Models/NetworkConfiguration.swift`: immutable configuration and validation.
 - `Internal/`: `HTTPTransport.swift` (injectable `URLSession` abstraction), `URLSessionNetworkClient.swift` (request construction and status handling), plus internal helpers.
-- The client uses an ephemeral `URLSession` with no disk cache and is safe for concurrent requests. There is no in-app network inspector, console request logging, automatic token refresh, or automatic retry.
+- The client uses an ephemeral `URLSession` with no disk cache by default and is safe for concurrent requests. Supply `sessionConfigurationFactory` to customize the session (for example, to register a `URLProtocol` stub). There is no in-app network inspector, console request logging, automatic token refresh, or automatic retry.
 - `NetworkConfiguration.LogVerbosity` is declared but not wired into request handling; do not rely on it.
 
 ## Testing

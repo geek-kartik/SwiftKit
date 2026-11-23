@@ -98,7 +98,7 @@ public struct DashboardView: View {
                         ModuleRow(
                             icon: "network.circle.fill",
                             title: "Networking Client",
-                            description: "HTTP verbs, JSON mapping, bearer injection, and refresh retry",
+                            description: "HTTP verbs, JSON mapping, bearer injection, and app-level 401 refresh",
                             color: .green
                         )
                     }
