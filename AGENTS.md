@@ -217,7 +217,7 @@ xcodebuild test -project SampleApp/SampleApp.xcodeproj \
   -scheme SampleApp -destination "platform=iOS Simulator,name=iPhone 17"
 ```
 
-Use an installed simulator name in the test command. The app target is ad-hoc signed for the simulator with `SampleApp/Resources/SampleApp.entitlements`; Keychain persistence requires that entitlement, so do not build the app with `CODE_SIGNING_ALLOWED=NO`. Run `xcodegen generate` from `SampleApp/` only after changing `project.yml`. `swift test` does not build the sample app.
+Use an installed simulator name in the test command. The app target is manually ad-hoc signed for simulator builds (`CODE_SIGN_STYLE=Manual`, `CODE_SIGN_IDENTITY="-"`, no team/profile) so it runs on any Mac without provisioning. Keychain behavior on unsigned/entitlement-less simulator builds can vary by host; if Keychain access fails, use a signed build with an appropriate entitlement. Run `xcodegen generate` from `SampleApp/` only after changing `project.yml`. `swift test` does not build the sample app.
 
 ---
 

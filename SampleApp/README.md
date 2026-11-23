@@ -30,7 +30,7 @@ xcodebuild test -project SampleApp/SampleApp.xcodeproj \
   -destination "platform=iOS Simulator,name=iPhone 17"
 ```
 
-The app target is ad-hoc signed for the simulator and uses `Resources/SampleApp.entitlements`, which grants a Keychain access group. Signing is required: an unsigned simulator app has no Keychain entitlement and every write fails with `errSecMissingEntitlement` (`-34018`), so session persistence cannot work.
+The app target is manually ad-hoc signed for simulator builds (`CODE_SIGN_STYLE=Manual`, `CODE_SIGN_IDENTITY="-"`, empty team/profile). It should build and run on any Mac with Xcode simulators installed, without Apple Developer provisioning. Keychain behavior can vary on entitlement-less simulator builds; if Secure Storage/Session persistence reports a Keychain entitlement error on a specific host, run with a signed entitlement-enabled build.
 
 `swift build` and `swift test` at the repository root build only the SDK package; the sample app has no `Package.swift` and must be built with Xcode.
 

@@ -183,10 +183,13 @@ internal final class SessionManager: SessionManagerProtocol {
         do {
             refreshed = try await request.task.value
         } catch is CancellationError {
+            clearInFlightRefresh(id: request.id)
             throw SessionError.refreshCancelled
         } catch let error as SessionError {
+            clearInFlightRefresh(id: request.id)
             throw error
         } catch {
+            clearInFlightRefresh(id: request.id)
             throw SessionError.refreshFailed
         }
 
@@ -274,6 +277,14 @@ internal final class SessionManager: SessionManagerProtocol {
         state.refreshTask?.cancel()
         state.refreshTask = nil
         state.refreshID = nil
+    }
+
+    private func clearInFlightRefresh(id: UUID) {
+        stateBox.mutate { state in
+            guard state.refreshID == id else { return }
+            state.refreshTask = nil
+            state.refreshID = nil
+        }
     }
 
     private func readStoredSession() throws -> Session? {

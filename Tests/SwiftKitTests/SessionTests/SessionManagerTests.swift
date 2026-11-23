@@ -276,6 +276,23 @@ final class SessionManagerTests: XCTestCase {
         await assertRefreshThrows(manager, expected: .refreshCancelled)
     }
 
+    func testAsyncRefreshFailureClearsInFlightStateForRetry() async throws {
+        let handler = MockSessionTokenRefreshHandler(behavior: .failure(URLError(.badServerResponse)))
+        let (manager, _, _, _) = makeManager(refreshHandler: handler)
+        try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))
+
+        await assertRefreshThrows(manager, expected: .refreshFailed)
+
+        handler.setBehavior(.success(SessionTokenRefresh(
+            accessToken: "recovered-access",
+            refreshToken: "recovered-refresh",
+            expiresAt: baseDate.addingTimeInterval(7200)
+        )))
+
+        let refreshed = try await manager.refreshSession()
+        XCTAssertEqual(refreshed.accessToken, "recovered-access")
+    }
+
     func testLogoutCancelsInFlightRefresh() async throws {
         let handler = ControllableRefreshHandler()
         let (manager, _, storage, _) = makeManager(refreshHandler: handler)
@@ -632,6 +649,10 @@ private final class MockSessionTokenRefreshHandler: SessionTokenRefreshHandler, 
 
     internal init(behavior: Behavior) {
         self.box = ThreadSafeBox(behavior)
+    }
+
+    internal func setBehavior(_ behavior: Behavior) {
+        box.write(behavior)
     }
 
     internal func refresh(using refreshToken: String) async throws -> SessionTokenRefresh {

@@ -26,12 +26,12 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.swiftkit.sampleapp
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        # Simulator builds are ad-hoc signed so the app receives its Keychain
-        # entitlement. Without a signature, every Keychain write fails with
-        # errSecMissingEntitlement (-34018).
+        # Ad-hoc signed for simulator runs on any Mac; no team/profile required.
+        CODE_SIGN_STYLE: Manual
         CODE_SIGNING_ALLOWED: YES
         CODE_SIGN_IDENTITY: "-"
-        CODE_SIGN_ENTITLEMENTS: Resources/SampleApp.entitlements
+        DEVELOPMENT_TEAM: ""
+        PROVISIONING_PROFILE_SPECIFIER: ""
         ENABLE_TESTABILITY: YES
     dependencies:
       - package: SwiftKit
