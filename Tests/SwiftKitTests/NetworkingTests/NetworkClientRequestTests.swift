@@ -17,6 +17,52 @@ private struct NonFiniteBody: Encodable, Sendable {
     let value: Double
 }
 
+/// Coordinates test requests so multiple transports are in flight at the same time.
+private actor ConcurrencyGate {
+    private var expectedArrivals = 0
+    private var arrivals = 0
+    private var arrivalContinuation: CheckedContinuation<Void, Never>?
+    private var releaseContinuations: [CheckedContinuation<Void, Never>] = []
+    private var isOpen = false
+
+    func expect(_ count: Int) {
+        expectedArrivals = count
+    }
+
+    func arriveAndWait() async {
+        arrivals += 1
+        if arrivals >= expectedArrivals {
+            arrivalContinuation?.resume()
+            arrivalContinuation = nil
+        }
+
+        if isOpen { return }
+        await withCheckedContinuation { releaseContinuations.append($0) }
+    }
+
+    func waitForArrivals() async {
+        guard arrivals < expectedArrivals else { return }
+        await withCheckedContinuation { arrivalContinuation = $0 }
+    }
+
+    func open() {
+        isOpen = true
+        let continuations = releaseContinuations
+        releaseContinuations.removeAll()
+        continuations.forEach { $0.resume() }
+    }
+}
+
+/// Supplies a distinct token per call while requests run concurrently.
+private actor TokenSequence {
+    private var value = 0
+
+    func next() -> String {
+        value += 1
+        return "token_\(value)"
+    }
+}
+
 final class NetworkClientRequestTests: XCTestCase {
     private let baseURL = URL(string: "https://api.example.com")!
     private let url = URL(string: "https://api.example.com/v1/accounts")!
@@ -559,6 +605,103 @@ final class NetworkClientRequestTests: XCTestCase {
         await assertNetworkError(.invalidResponse) {
             _ = try await test.client.send(NetworkRequest(url: url))
         }
+    }
+
+    // MARK: - Concurrency
+
+    func testConcurrentRequestsCompleteIndependently() async throws {
+        let gate = ConcurrencyGate()
+        await gate.expect(2)
+        let test = makeTestNetworkClient { request in
+            await gate.arriveAndWait()
+            let path = request.url?.path ?? ""
+            return (Data(path.utf8), makeHTTPResponse(url: request.url!, statusCode: 200))
+        }
+
+        let firstURL = URL(string: "https://api.example.com/v1/first")!
+        let secondURL = URL(string: "https://api.example.com/v1/second")!
+
+        let firstTask = Task { try await test.client.send(NetworkRequest(url: firstURL)) }
+        let secondTask = Task { try await test.client.send(NetworkRequest(url: secondURL)) }
+
+        await gate.waitForArrivals()
+        XCTAssertEqual(test.transport.requests.count, 2)
+
+        await gate.open()
+        let first = try await firstTask.value
+        let second = try await secondTask.value
+
+        XCTAssertEqual(String(data: first.data, encoding: .utf8), "/v1/first")
+        XCTAssertEqual(String(data: second.data, encoding: .utf8), "/v1/second")
+        XCTAssertEqual(test.transport.requests.count, 2)
+    }
+
+    func testConcurrentRequestsReceivePerRequestBearerTokens() async throws {
+        let tokens = TokenSequence()
+        let configuration = NetworkConfiguration(
+            baseURL: baseURL,
+            tokenProvider: { await tokens.next() }
+        )
+        let test = makeTestNetworkClient(configuration: configuration) { request in
+            (Data("ok".utf8), makeHTTPResponse(url: request.url!, statusCode: 200))
+        }
+
+        let urls = (1...4).map { URL(string: "https://api.example.com/v1/items/\($0)")! }
+        let statuses = try await withThrowingTaskGroup(of: Int.self) { group in
+            for url in urls {
+                group.addTask {
+                    try await test.client.send(NetworkRequest(url: url)).statusCode
+                }
+            }
+
+            var results: [Int] = []
+            for try await status in group {
+                results.append(status)
+            }
+            return results
+        }
+
+        XCTAssertEqual(test.transport.requests.count, 4)
+        XCTAssertEqual(statuses.count, 4)
+
+        let authorization = Set(
+            test.transport.requests.compactMap { $0.value(forHTTPHeaderField: "Authorization") }
+        )
+        XCTAssertEqual(authorization.count, 4)
+        XCTAssertTrue(authorization.allSatisfy { $0.hasPrefix("Bearer token_") })
+        XCTAssertTrue(statuses.allSatisfy { $0 == 200 })
+    }
+
+    func testCancellingOneConcurrentRequestLeavesTheOtherRunning() async throws {
+        let gate = ConcurrencyGate()
+        await gate.expect(2)
+        let test = makeTestNetworkClient { request in
+            await gate.arriveAndWait()
+            try Task.checkCancellation()
+            return (Data("ok".utf8), makeHTTPResponse(url: request.url!, statusCode: 200))
+        }
+
+        let firstTask = Task {
+            try await test.client.send(NetworkRequest(url: URL(string: "https://api.example.com/v1/cancelled")!))
+        }
+        let secondTask = Task {
+            try await test.client.send(NetworkRequest(url: URL(string: "https://api.example.com/v1/completed")!))
+        }
+
+        await gate.waitForArrivals()
+        firstTask.cancel()
+        await gate.open()
+
+        do {
+            _ = try await firstTask.value
+            XCTFail("Expected the cancelled request to throw.")
+        } catch let error as NetworkError {
+            XCTAssertEqual(error, .cancelled)
+        }
+
+        let second = try await secondTask.value
+        XCTAssertEqual(second.statusCode, 200)
+        XCTAssertEqual(String(data: second.data, encoding: .utf8), "ok")
     }
 
     // MARK: - Real URLSession Transport

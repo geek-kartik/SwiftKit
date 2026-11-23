@@ -159,6 +159,7 @@ public final class MockSessionManager: SessionManagerProtocol, @unchecked Sendab
     public var restoredSession: Session?
     public var restoreError: Error?
     public var asyncRefreshError: Error?
+    public var asyncRefreshDelay: TimeInterval = 0
     public var refreshedAccessToken = "refreshed_access_token"
     public var refreshedRefreshToken = "refreshed_refresh_token"
 
@@ -228,6 +229,12 @@ public final class MockSessionManager: SessionManagerProtocol, @unchecked Sendab
         return lastObservedEvent
     }
 
+    public var observerCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return observers.count
+    }
+
     public func startSession(_ session: Session) throws {
         lock.lock()
         startCount += 1
@@ -289,6 +296,10 @@ public final class MockSessionManager: SessionManagerProtocol, @unchecked Sendab
     }
 
     public func refreshSession() async throws -> Session {
+        let delay = asyncRefreshDelay
+        if delay > 0 {
+            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        }
         let (refreshed, callbacks) = try prepareAsyncRefresh()
         notify(callbacks, of: .refreshed(refreshed))
         return refreshed

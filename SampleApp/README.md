@@ -69,7 +69,7 @@ No environment variables, secrets, or `.env` files are required. Setup lives in 
 | Connectivity | `start`/`stop`, observer tokens, status timeline; callbacks hop to the main actor for UI |
 | Logger | All severity levels, custom `log` with source context, and masking demo with `DataMasker` |
 | Session | Start, restore, sync and async refresh, observers, expiry, logout, and simulated 401 handling |
-| Networking | All five HTTP verbs, raw response metadata, JSON encode/decode, bearer token from `tokenProvider`, configuration callbacks, 404/500/decoding failures, developer-controlled logging, and app-level `401 → refreshSession() → retry once` |
+| Networking | All five HTTP verbs, raw JSON body passthrough with editable headers, timeout, and cache policy, raw response metadata, bearer token from `tokenProvider`, duplicate suppression and in-flight tracking, cancel, session-aware logout/expiry cancellation, configuration callbacks, 404/500/decoding failures, developer-controlled logging, and app-level `401 → single-flight refreshSession() → retry once` |
 
 ## Project layout
 
@@ -89,4 +89,4 @@ SampleApp/
 └── Tests/SampleAppTests/      # ViewModel tests with mocks and URLProtocol tests
 ```
 
-Synchronous `refreshSession(accessToken:refreshToken:expiresAt:)` uses literal values from the UI; only the async `refreshSession()` uses the configured refresh handler. Token refresh and 401 retry are implemented by the sample, not by SwiftKit.
+Synchronous `refreshSession(accessToken:refreshToken:expiresAt:)` uses literal values from the UI; only the async `refreshSession()` uses the configured refresh handler. Concurrent `401`s share one refresh, logout or expiry skips refresh and retry, and a second `401` clears the session. Token refresh and 401 retry are implemented by the sample, not by SwiftKit.

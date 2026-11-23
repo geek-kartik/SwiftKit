@@ -46,26 +46,64 @@ public struct NetworkingView: View {
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
 
-                TextField("JSON body message", text: $viewModel.bodyText)
+                Text("Headers · one Name: Value pair per line")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                TextEditor(text: $viewModel.headersText)
+                    .font(.system(.footnote, design: .monospaced))
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
+                    .frame(minHeight: 56)
 
-                Button {
-                    Task { await viewModel.send() }
-                } label: {
-                    HStack {
-                        Image(systemName: "paperplane.fill")
-                        if viewModel.isLoading {
-                            ProgressView()
-                        } else {
-                            Text("Send Request")
-                                .fontWeight(.semibold)
-                        }
+                Text("JSON body · sent as raw JSON")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                TextEditor(text: $viewModel.bodyText)
+                    .font(.system(.footnote, design: .monospaced))
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                    .frame(minHeight: 64)
+
+                TextField("Timeout in seconds", text: $viewModel.timeoutText)
+                    .keyboardType(.decimalPad)
+
+                Picker("Cache policy", selection: $viewModel.cachePolicy) {
+                    ForEach(SampleCachePolicy.allCases) { policy in
+                        Text(policy.rawValue).tag(policy)
                     }
-                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isLoading)
+
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await viewModel.send() }
+                    } label: {
+                        Label("Send Request", systemImage: "paperplane.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.isLoading)
+
+                    if viewModel.isLoading {
+                        Button(role: .cancel) {
+                            viewModel.cancelActiveRequest()
+                        } label: {
+                            Label("Cancel", systemImage: "xmark.circle.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                    }
+                }
+
+                if viewModel.isLoading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("In flight: \(viewModel.inFlightCount)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
 
             Section(header: Text("Quick Scenarios")) {
@@ -97,7 +135,7 @@ public struct NetworkingView: View {
                     Task { await viewModel.sendProtectedRequest() }
                 }
 
-                Text("The 401 flow is app-level: the screen calls SessionManagerProtocol.refreshSession(), then retries once. The SDK does not retry automatically.")
+                Text("The 401 flow is app-level: the screen calls SessionManagerProtocol.refreshSession(), then retries once. The SDK does not retry automatically. Repeated taps are suppressed while an identical request is in flight, and no retry happens after logout or expiry.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -144,6 +182,9 @@ public struct NetworkingView: View {
                 Text("When enabled, each result is written through LoggerProtocol at info or error level with sensitive values masked. Turn it off to keep request details out of device logs.")
                     .font(.caption)
                     .foregroundColor(.secondary)
+
+                metadataRow("In flight", "\(viewModel.inFlightCount)")
+                metadataRow("Duplicates blocked", "\(viewModel.suppressedDuplicateCount)")
             }
 
             Section(header: HStack {
@@ -199,7 +240,8 @@ public struct NetworkingView: View {
             }
         }
         .navigationTitle("Networking Client")
-        .onAppear { viewModel.refreshState() }
+        .onAppear { viewModel.activate() }
+        .onDisappear { viewModel.cleanup() }
     }
 
     private func statusColor(for statusCode: Int) -> Color {
