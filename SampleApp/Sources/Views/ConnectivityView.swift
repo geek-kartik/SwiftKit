@@ -39,7 +39,7 @@ public struct ConnectivityView: View {
 
             // Controls
             Section(header: Text("Monitor Lifecycle Controls")) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 105), spacing: 10)], spacing: 10) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 135), spacing: 10)], spacing: 10) {
                     Button(action: { viewModel.startMonitoring() }) {
                         HStack(spacing: 6) {
                             Image(systemName: "play.fill")
@@ -64,9 +64,13 @@ public struct ConnectivityView: View {
                     Button(action: { viewModel.toggleObserver() }) {
                         Label(viewModel.hasActiveObserver ? "Remove Obs" : "Add Obs",
                               systemImage: viewModel.hasActiveObserver ? "minus.circle" : "plus.circle")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                            .foregroundStyle(viewModel.hasActiveObserver ? .red : .green)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+                    .tint(viewModel.hasActiveObserver ? .red : .green)
                 }
                 .padding(.vertical, 4)
             }

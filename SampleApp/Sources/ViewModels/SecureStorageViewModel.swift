@@ -2,6 +2,23 @@ import Foundation
 import SwiftUI
 import SwiftKit
 
+public enum SecureStorageFeedbackStyle: Equatable, Sendable {
+    case success
+    case info
+    case warning
+    case error
+}
+
+public struct SecureStorageFeedback: Equatable, Sendable {
+    public let message: String
+    public let style: SecureStorageFeedbackStyle
+
+    public init(message: String, style: SecureStorageFeedbackStyle) {
+        self.message = message
+        self.style = style
+    }
+}
+
 /// ViewModel managing user interactions and demonstrations for `SecureStorageProtocol`.
 @MainActor
 public final class SecureStorageViewModel: ObservableObject {
@@ -16,7 +33,18 @@ public final class SecureStorageViewModel: ObservableObject {
     @Published public var profileUserId: String = "user_42"
     @Published public var profileUsername: String = "johndoe"
     @Published public var profileRole: String = "Administrator"
+    @Published public var profileKey: String = "session_profile_key"
     @Published public var retrievedProfile: SampleSessionProfile?
+    @Published public var savedProfile: SampleSessionProfile?
+    @Published public var isProfileStored: Bool = false
+    @Published public var profileFeedback: SecureStorageFeedback?
+
+    public var hasUnsavedProfileChanges: Bool {
+        guard let savedProfile else { return false }
+        return profileUserId != savedProfile.userId
+            || profileUsername != savedProfile.username
+            || profileRole != savedProfile.role
+    }
 
     private let secureStorage: SecureStorageProtocol
     private let logger: LoggerProtocol
@@ -27,6 +55,16 @@ public final class SecureStorageViewModel: ObservableObject {
     ) {
         self.secureStorage = secureStorage ?? SDKService.shared.secureStorage
         self.logger = logger ?? SDKService.shared.logger
+        self.isProfileStored = self.secureStorage.contains(self.profileKey)
+        self.profileFeedback = self.isProfileStored
+            ? SecureStorageFeedback(
+                message: "A saved profile exists. Tap Read Profile to load it.",
+                style: .info
+            )
+            : SecureStorageFeedback(
+                message: "No saved profile yet. Fill in the fields and tap Save Profile first.",
+                style: .info
+            )
     }
 
     // MARK: - String Operations
@@ -116,7 +154,21 @@ public final class SecureStorageViewModel: ObservableObject {
     // MARK: - Codable Operations
 
     /// Demonstrates storing a Codable struct using `setCodable(_:forKey:)`.
-    public func saveProfile(key: String = "session_profile_key") {
+    public func saveProfile(key: String? = nil) {
+        let targetKey = resolvedProfileKey(key)
+
+        guard !targetKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            setProfileFeedback("Profile key cannot be empty.", style: .warning)
+            setStatus("Profile key cannot be empty.", isError: true)
+            return
+        }
+        guard !profileUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !profileUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            setProfileFeedback("User ID and Username are required.", style: .warning)
+            setStatus("User ID and Username are required.", isError: true)
+            return
+        }
+
         let profile = SampleSessionProfile(
             userId: profileUserId,
             username: profileUsername,
@@ -125,33 +177,83 @@ public final class SecureStorageViewModel: ObservableObject {
         )
 
         do {
-            try secureStorage.setCodable(profile, forKey: key)
-            logger.info("SecureStorage: saved Codable profile for key: \(key)")
+            try secureStorage.setCodable(profile, forKey: targetKey)
+            savedProfile = profile
+            retrievedProfile = profile
+            isProfileStored = true
+            setProfileFeedback("Saved. You can now read the profile back.", style: .success)
+            logger.info("SecureStorage: saved Codable profile for key: \(targetKey)")
             setStatus("Saved Codable profile successfully.", isError: false)
         } catch let error as SecureStorageError {
+            setProfileFeedback("Could not save the profile: \(error.localizedDescription)", style: .error)
             logger.error("SecureStorage profile save error: \(error.localizedDescription)")
             setStatus("Storage Error: \(error.localizedDescription)", isError: true)
         } catch {
+            setProfileFeedback("Could not save the profile: \(error.localizedDescription)", style: .error)
             logger.error("SecureStorage profile unexpected save error: \(error.localizedDescription)")
             setStatus("Unexpected Error: \(error.localizedDescription)", isError: true)
         }
     }
 
     /// Demonstrates retrieving a Codable struct using `codable(_:forKey:)`.
-    public func readProfile(key: String = "session_profile_key") {
+    public func readProfile(key: String? = nil) {
+        let targetKey = resolvedProfileKey(key)
+
+        guard !targetKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            setProfileFeedback("Profile key cannot be empty.", style: .warning)
+            setStatus("Profile key cannot be empty.", isError: true)
+            return
+        }
+
+        guard secureStorage.contains(targetKey) else {
+            retrievedProfile = nil
+            savedProfile = nil
+            isProfileStored = false
+            setProfileFeedback("No saved profile yet. Fill in the fields and tap Save Profile first.", style: .info)
+            setStatus("No saved profile yet. Save it before reading.", isError: false)
+            return
+        }
+
         do {
-            let profile = try secureStorage.codable(SampleSessionProfile.self, forKey: key)
+            let profile = try secureStorage.codable(SampleSessionProfile.self, forKey: targetKey)
             retrievedProfile = profile
-            logger.info("SecureStorage: retrieved Codable profile for key: \(key)")
+            savedProfile = profile
+            isProfileStored = true
+            setProfileFeedback("Loaded saved profile for \(profile.username).", style: .success)
+            logger.info("SecureStorage: retrieved Codable profile for key: \(targetKey)")
             setStatus("Retrieved Codable profile for user: \(profile.username)", isError: false)
         } catch let error as SecureStorageError {
             retrievedProfile = nil
-            logger.warning("SecureStorage profile read warning: \(error.localizedDescription)")
-            setStatus("Storage Error: \(error.localizedDescription)", isError: true)
+            if case .itemNotFound = error {
+                savedProfile = nil
+                isProfileStored = false
+                setProfileFeedback("No saved profile yet. Fill in the fields and tap Save Profile first.", style: .info)
+                setStatus("No saved profile yet. Save it before reading.", isError: false)
+            } else {
+                isProfileStored = true
+                let message = profileReadFailureMessage(for: error)
+                setProfileFeedback(message, style: .error)
+                logger.warning("SecureStorage profile read warning: \(error.localizedDescription)")
+                setStatus("Storage Error: \(error.localizedDescription)", isError: true)
+            }
         } catch {
             retrievedProfile = nil
+            setProfileFeedback("Could not read the profile: \(error.localizedDescription)", style: .error)
             logger.error("SecureStorage profile unexpected read error: \(error.localizedDescription)")
             setStatus("Unexpected Error: \(error.localizedDescription)", isError: true)
+        }
+    }
+
+    /// Updates the inline feedback after any profile field changes.
+    public func profileFieldsChanged() {
+        if !isProfileStored {
+            setProfileFeedback("Not saved yet. Tap Save Profile to persist this profile.", style: .info)
+        } else if savedProfile == nil {
+            setProfileFeedback("A saved profile exists. Tap Read Profile to load it.", style: .info)
+        } else if hasUnsavedProfileChanges {
+            setProfileFeedback("Unsaved changes. Tap Save Changes to persist them.", style: .warning)
+        } else {
+            setProfileFeedback("Matches the saved profile.", style: .success)
         }
     }
 
@@ -182,12 +284,37 @@ public final class SecureStorageViewModel: ObservableObject {
             try secureStorage.removeAll()
             retrievedValue = ""
             retrievedProfile = nil
+            savedProfile = nil
+            isProfileStored = false
             containsKeyResult = false
+            setProfileFeedback("All secure storage items were cleared, including the saved profile.", style: .info)
             logger.warning("SecureStorage: cleared all Keychain items for configured service.")
             setStatus("All secure storage items cleared successfully.", isError: false)
         } catch {
             logger.error("SecureStorage clearAll error: \(error.localizedDescription)")
             setStatus("Clear All Error: \(error.localizedDescription)", isError: true)
+        }
+    }
+
+    private func resolvedProfileKey(_ key: String?) -> String {
+        if let key {
+            profileKey = key
+        }
+        return profileKey
+    }
+
+    private func setProfileFeedback(_ message: String, style: SecureStorageFeedbackStyle) {
+        profileFeedback = SecureStorageFeedback(message: message, style: style)
+    }
+
+    private func profileReadFailureMessage(for error: SecureStorageError) -> String {
+        switch error {
+        case .decodingFailed, .invalidData:
+            return "The saved profile could not be decoded. Tap Save Profile to replace it."
+        case .readFailed:
+            return "The saved profile could not be read. Try again."
+        default:
+            return "Could not read the profile: \(error.localizedDescription)"
         }
     }
 

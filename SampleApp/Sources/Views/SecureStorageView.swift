@@ -94,15 +94,33 @@ public struct SecureStorageView: View {
             // Codable Struct Section
             Section(header: Text("Codable Object Persistence")) {
                 TextField("User ID", text: $viewModel.profileUserId)
+                    .onChange(of: viewModel.profileUserId) { _ in viewModel.profileFieldsChanged() }
                 TextField("Username", text: $viewModel.profileUsername)
+                    .onChange(of: viewModel.profileUsername) { _ in viewModel.profileFieldsChanged() }
                 TextField("Role", text: $viewModel.profileRole)
+                    .onChange(of: viewModel.profileRole) { _ in viewModel.profileFieldsChanged() }
+
+                HStack {
+                    if viewModel.hasUnsavedProfileChanges {
+                        Label("Unsaved changes", systemImage: "pencil.and.outline")
+                            .foregroundColor(.orange)
+                    } else if viewModel.isProfileStored {
+                        Label("Saved", systemImage: "checkmark.seal.fill")
+                            .foregroundColor(.green)
+                    } else {
+                        Label("Not saved yet", systemImage: "info.circle")
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                }
+                .font(.caption)
 
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                     Button(action: { viewModel.saveProfile() }) {
                         HStack(spacing: 6) {
                             Image(systemName: "person.crop.circle.badge.plus")
                                 .renderingMode(.template)
-                            Text("Save Profile")
+                            Text(viewModel.hasUnsavedProfileChanges ? "Save Changes" : "Save Profile")
                                 .fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity)
@@ -121,6 +139,10 @@ public struct SecureStorageView: View {
                     .buttonStyle(.bordered)
                 }
                 .padding(.vertical, 4)
+
+                if let feedback = viewModel.profileFeedback {
+                    ProfileFeedbackBanner(feedback: feedback)
+                }
 
                 if let profile = viewModel.retrievedProfile {
                     VStack(alignment: .leading, spacing: 4) {
@@ -168,5 +190,40 @@ public struct SecureStorageView: View {
             }
         }
         .navigationTitle("Secure Storage")
+    }
+}
+
+private struct ProfileFeedbackBanner: View {
+    let feedback: SecureStorageFeedback
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: symbol)
+                .foregroundColor(tint)
+                .padding(.top, 2)
+            Text(feedback.message)
+                .font(.footnote)
+                .foregroundColor(tint)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var tint: Color {
+        switch feedback.style {
+        case .success: return .green
+        case .info: return .blue
+        case .warning: return .orange
+        case .error: return .red
+        }
+    }
+
+    private var symbol: String {
+        switch feedback.style {
+        case .success: return "checkmark.circle.fill"
+        case .info: return "info.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .error: return "xmark.octagon.fill"
+        }
     }
 }

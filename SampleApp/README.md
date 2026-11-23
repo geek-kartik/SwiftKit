@@ -14,6 +14,8 @@ See the [root README](../README.md) for SDK installation and module documentatio
 
 Open `SampleApp/SampleApp.xcodeproj`, select the **SampleApp** scheme and a simulator, then run. The SDK is included as a local Swift package (`path: ..`) via `project.yml`.
 
+The committed shared scheme (`SampleApp.xcodeproj/xcshareddata/xcschemes/SampleApp.xcscheme`) has an explicit Launch action for `SampleApp.app`, so **Cmd+R** or the Run button builds and launches the app on the selected simulator. If Run only builds, choose **SampleApp** in the scheme picker and select an iOS simulator as the run destination.
+
 From the repository root:
 
 ```bash
@@ -64,7 +66,7 @@ No environment variables, secrets, or `.env` files are required. Setup lives in 
 | Module | Flow |
 |---|---|
 | Core | `SwiftKit.initialize(configuration:)` at launch; `SDKService` wraps `SwiftKit.shared` for injection into view models |
-| Secure Storage | Keychain string/data/`Codable` round trips, `contains`, `remove`, `removeAll`; the app validates empty input locally |
+| Secure Storage | Keychain string/data/`Codable` round trips, `contains`, `remove`, `removeAll`; the app validates empty input locally and shows inline Codable feedback for never-saved, unsaved-edits, loaded, and decode-failure states |
 | Device Info | Metadata display and `isUpdateRequired`, `isAppVersionAtLeast`, `isOSVersionAtLeast` checks |
 | Connectivity | `start`/`stop`, observer tokens, status timeline; callbacks hop to the main actor for UI |
 | Logger | All severity levels, custom `log` with source context, and masking demo with `DataMasker` |
