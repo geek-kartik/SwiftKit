@@ -96,6 +96,12 @@ public enum NetworkingInputError: Error, LocalizedError, Equatable, Sendable {
 @MainActor
 public final class NetworkingViewModel: ObservableObject {
     @Published public var selectedMethod: HTTPMethod = .get
+
+    /// Returns `true` when the body TextEditor should be visible.
+    /// GET and DELETE methods hide the body field; POST, PUT, PATCH show it.
+    public var isBodyVisible: Bool {
+        selectedMethod != .get && selectedMethod != .delete
+    }
     @Published public var path = "/v1/items"
     @Published public var bodyText = #"{"message":"Hello from SampleApp"}"#
     @Published public var headersText = ""

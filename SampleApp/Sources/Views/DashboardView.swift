@@ -96,7 +96,7 @@ public struct DashboardView: View {
 
                     NavigationLink(destination: NetworkingView()) {
                         ModuleRow(
-                            icon: "network.circle.fill",
+                            icon: "arrow.left.arrow.right.circle.fill",
                             title: "Networking Client",
                             description: "HTTP verbs, JSON mapping, bearer injection, and app-level 401 refresh",
                             color: .green
