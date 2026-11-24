@@ -4,6 +4,7 @@ import SwiftKit
 /// UI demonstrating real-time network path monitoring, status transitions, and lifecycle observer handling.
 public struct ConnectivityView: View {
     @StateObject private var viewModel = ConnectivityViewModel()
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     public init() {}
 
@@ -39,36 +40,25 @@ public struct ConnectivityView: View {
 
             // Controls
             Section(header: Text("Monitor Lifecycle Controls")) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 105), spacing: 10)], spacing: 10) {
-                    Button(action: { viewModel.startMonitoring() }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "play.fill")
-                                .renderingMode(.template)
-                                .foregroundStyle(.white)
-                            Text("Start")
-                                .fontWeight(.semibold)
+                if horizontalSizeClass == .regular {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 120, maximum: 220), spacing: 10), count: 3), spacing: 10) {
+                        startButton
+                        stopButton
+                        observerButton
+                    }
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 4)
+                } else {
+                    VStack(spacing: 10) {
+                        HStack(spacing: 10) {
+                            startButton
+                            stopButton
                         }
-                        .frame(maxWidth: .infinity)
+                        observerButton
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.isMonitoring)
-
-                    Button(action: { viewModel.stopMonitoring() }) {
-                        Label("Stop", systemImage: "stop.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                    .disabled(!viewModel.isMonitoring)
-
-                    Button(action: { viewModel.toggleObserver() }) {
-                        Label(viewModel.hasActiveObserver ? "Remove Obs" : "Add Obs",
-                              systemImage: viewModel.hasActiveObserver ? "minus.circle" : "plus.circle")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
+                    .padding(.vertical, 4)
                 }
-                .padding(.vertical, 4)
             }
 
             // Note on reachability
@@ -111,6 +101,50 @@ public struct ConnectivityView: View {
         .navigationTitle("Connectivity Monitor")
         .onAppear {
             viewModel.startMonitoring()
+        }
+    }
+
+    private var startButton: some View {
+        Button(action: { viewModel.startMonitoring() }) {
+            StartButtonLabel()
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(viewModel.isMonitoring)
+    }
+
+    private var stopButton: some View {
+        Button(action: { viewModel.stopMonitoring() }) {
+            Label("Stop", systemImage: "stop.fill")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .tint(.red)
+        .disabled(!viewModel.isMonitoring)
+    }
+
+    private var observerButton: some View {
+        Button(action: { viewModel.toggleObserver() }) {
+            Label(viewModel.hasActiveObserver ? "Remove Obs" : "Add Obs",
+                  systemImage: viewModel.hasActiveObserver ? "minus.circle" : "plus.circle")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+    }
+
+    private struct StartButtonLabel: View {
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            HStack(spacing: 6) {
+                if isEnabled {
+                    Image(systemName: "play.fill")
+                        .foregroundStyle(.white)
+                } else {
+                    Image(systemName: "play.fill")
+                }
+                Text("Start")
+            }
+            .frame(maxWidth: .infinity)
         }
     }
 
