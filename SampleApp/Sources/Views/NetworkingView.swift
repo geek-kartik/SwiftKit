@@ -8,7 +8,11 @@ public struct NetworkingView: View {
 
     public var body: some View {
         Form {
-            Section(header: Text("Bearer Token Injection")) {
+            Section(header: HStack {
+                Image(systemName: "key.fill")
+                    .foregroundColor(.indigo)
+                Text("Bearer Token Injection")
+            }) {
                 HStack {
                     Image(systemName: "key.fill")
                         .foregroundColor(.indigo)
@@ -34,7 +38,10 @@ public struct NetworkingView: View {
                 }
             }
 
-            Section(header: Text("Request Builder")) {
+            Section(header: HStack {
+                Image(systemName: "square.and.pencil")
+                Text("Request Builder")
+            }) {
                 Picker("HTTP Method", selection: $viewModel.selectedMethod) {
                     ForEach(HTTPMethod.allCases, id: \.self) { method in
                         Text(method.rawValue).tag(method)
@@ -55,14 +62,16 @@ public struct NetworkingView: View {
                     .disableAutocorrection(true)
                     .frame(minHeight: 56)
 
-                Text("JSON body · sent as raw JSON")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                TextEditor(text: $viewModel.bodyText)
-                    .font(.system(.footnote, design: .monospaced))
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-                    .frame(minHeight: 64)
+                if viewModel.isBodyVisible {
+                    Text("JSON body · sent as raw JSON")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    TextEditor(text: $viewModel.bodyText)
+                        .font(.system(.footnote, design: .monospaced))
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                        .frame(minHeight: 64)
+                }
 
                 TextField("Timeout in seconds", text: $viewModel.timeoutText)
                     .keyboardType(.decimalPad)
@@ -106,7 +115,10 @@ public struct NetworkingView: View {
                 }
             }
 
-            Section(header: Text("Quick Scenarios")) {
+            Section(header: HStack {
+                Image(systemName: "function")
+                Text("Quick Scenarios")
+            }) {
                 Button("GET /v1/items") {
                     Task { await viewModel.sendRequest(method: .get, path: "/v1/items") }
                 }
@@ -141,7 +153,10 @@ public struct NetworkingView: View {
             }
 
             if let response = viewModel.lastResponse {
-                Section(header: Text("Last Response")) {
+                Section(header: HStack {
+                Image(systemName: "terminal")
+                Text("Last Response")
+            }) {
                     metadataRow("Status", "HTTP \(response.statusCode)")
                     metadataRow("Content-Type", response.contentType ?? "—")
                     metadataRow("Body", "\(response.byteCount) bytes")
@@ -153,7 +168,10 @@ public struct NetworkingView: View {
             }
 
             if !viewModel.responseText.isEmpty {
-                Section(header: Text("Response Body")) {
+                Section(header: HStack {
+                Image(systemName: "doc.text")
+                Text("Response Body")
+            }) {
                     Text(viewModel.responseText)
                         .font(.system(.footnote, design: .monospaced))
                         .textSelection(.enabled)
@@ -161,7 +179,10 @@ public struct NetworkingView: View {
             }
 
             if !viewModel.statusMessage.isEmpty {
-                Section(header: Text("Operation Feedback")) {
+                Section(header: HStack {
+                Image(systemName: "exclamationmark.shield.fill")
+                Text("Operation Feedback")
+            }) {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: viewModel.isErrorMessage ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                             .foregroundColor(viewModel.isErrorMessage ? .red : .green)
