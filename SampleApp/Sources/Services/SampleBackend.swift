@@ -259,8 +259,13 @@ public final class SampleURLProtocol: URLProtocol {
     public override func startLoading() {
         let request = self.request
         Task { [weak self] in
+            // Simulate realistic network latency so the loading state stays visible
+            // instead of flickering for an instantly resolved mock response.
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard let self, !self.isCancelled else { return }
+
             let outcome = await SampleBackend.shared.handle(request)
-            guard let self, !self.isCancelled, let url = request.url else {
+            guard let url = request.url else {
                 return
             }
 
