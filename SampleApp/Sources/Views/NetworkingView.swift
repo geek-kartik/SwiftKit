@@ -87,6 +87,7 @@ public struct NetworkingView: View {
                 } label: {
                     Label("Send Request", systemImage: "paperplane.fill")
                         .font(.headline)
+                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
