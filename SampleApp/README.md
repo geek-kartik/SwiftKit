@@ -57,7 +57,7 @@ No environment variables, secrets, or `.env` files are required. Setup lives in 
 | `/v1/failure` | 500 |
 | `/v1/bad-json` | Malformed JSON |
 | `/v1/not-found` | 404 |
-| Other `/v1/...` paths | Successful JSON response |
+| Other `/v1/...` paths | Successful JSON response when an `Authorization` header is present; otherwise 401 (bearer token required) |
 
 ## What the app demonstrates
 
