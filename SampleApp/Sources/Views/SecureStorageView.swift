@@ -71,14 +71,12 @@ public struct SecureStorageView: View {
                     viewModel.checkContains()
                 }
 
-                if let exists = viewModel.containsKeyResult {
-                    HStack {
-                        Text("Key Exists:")
-                        Spacer()
-                        Text(exists ? "YES" : "NO")
-                            .fontWeight(.semibold)
-                            .foregroundColor(exists ? .green : .secondary)
-                    }
+                HStack {
+                    Text("Key Exists:")
+                    Spacer()
+                    Text(viewModel.containsKeyResult == true ? "YES" : "NO")
+                        .fontWeight(.semibold)
+                        .foregroundColor(viewModel.containsKeyResult == true ? .green : .secondary)
                 }
             }
 
@@ -94,8 +92,14 @@ public struct SecureStorageView: View {
             // Codable Struct Section
             Section(header: Text("Codable Object Persistence")) {
                 TextField("User ID", text: $viewModel.profileUserId)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
                 TextField("Username", text: $viewModel.profileUsername)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
                 TextField("Role", text: $viewModel.profileRole)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
 
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                     Button(action: { viewModel.saveProfile() }) {

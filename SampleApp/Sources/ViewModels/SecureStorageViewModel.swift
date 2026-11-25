@@ -62,14 +62,17 @@ public final class SecureStorageViewModel: ObservableObject {
         do {
             let val = try secureStorage.string(forKey: inputKey)
             retrievedValue = val
+            containsKeyResult = true
             logger.info("SecureStorage: retrieved string for key: \(inputKey)")
             setStatus("Successfully retrieved string for key '\(inputKey)'.", isError: false)
         } catch let error as SecureStorageError {
             retrievedValue = ""
+            containsKeyResult = secureStorage.contains(inputKey)
             logger.warning("SecureStorage read warning: \(error.localizedDescription)")
             setStatus("Storage Error: \(error.localizedDescription)", isError: true)
         } catch {
             retrievedValue = ""
+            containsKeyResult = secureStorage.contains(inputKey)
             logger.error("SecureStorage unexpected read error: \(error.localizedDescription)")
             setStatus("Unexpected Error: \(error.localizedDescription)", isError: true)
         }
@@ -139,17 +142,21 @@ public final class SecureStorageViewModel: ObservableObject {
 
     /// Demonstrates retrieving a Codable struct using `codable(_:forKey:)`.
     public func readProfile(key: String = "session_profile_key") {
+        retrievedProfile = nil
         do {
             let profile = try secureStorage.codable(SampleSessionProfile.self, forKey: key)
+            guard profile.userId == profileUserId else {
+                logger.warning("SecureStorage: decoded profile user ID does not match '\(profileUserId)'")
+                setStatus("No profile found for user ID '\(profileUserId)'.", isError: true)
+                return
+            }
             retrievedProfile = profile
             logger.info("SecureStorage: retrieved Codable profile for key: \(key)")
             setStatus("Retrieved Codable profile for user: \(profile.username)", isError: false)
         } catch let error as SecureStorageError {
-            retrievedProfile = nil
             logger.warning("SecureStorage profile read warning: \(error.localizedDescription)")
             setStatus("Storage Error: \(error.localizedDescription)", isError: true)
         } catch {
-            retrievedProfile = nil
             logger.error("SecureStorage profile unexpected read error: \(error.localizedDescription)")
             setStatus("Unexpected Error: \(error.localizedDescription)", isError: true)
         }

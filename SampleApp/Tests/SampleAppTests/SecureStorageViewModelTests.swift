@@ -46,6 +46,7 @@ final class SecureStorageViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.isErrorMessage)
         XCTAssertTrue(viewModel.retrievedValue.isEmpty)
         XCTAssertTrue(viewModel.statusMessage.contains("No secure storage item was found"))
+        XCTAssertEqual(viewModel.containsKeyResult, false)
     }
 
     func testEmptyKeyValidation() {
@@ -98,6 +99,55 @@ final class SecureStorageViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.retrievedProfile?.userId, "user_99")
         XCTAssertEqual(viewModel.retrievedProfile?.username, "alice")
         XCTAssertEqual(viewModel.retrievedProfile?.role, "Engineer")
+    }
+
+    func testReadProfileMismatchHidesProfileAndShowsError() {
+        viewModel.profileUserId = "user_99"
+        viewModel.profileUsername = "alice"
+        viewModel.profileRole = "Engineer"
+        viewModel.saveProfile(key: "test_profile_key")
+
+        viewModel.profileUserId = "different_user"
+        viewModel.readProfile(key: "test_profile_key")
+
+        XCTAssertNil(viewModel.retrievedProfile)
+        XCTAssertTrue(viewModel.isErrorMessage)
+        XCTAssertTrue(viewModel.statusMessage.contains("No profile found for user ID 'different_user'"))
+    }
+
+    func testReadProfileUserIdIsCaseSensitive() {
+        viewModel.profileUserId = "User_99"
+        viewModel.profileUsername = "alice"
+        viewModel.profileRole = "Engineer"
+        viewModel.saveProfile(key: "test_profile_key")
+
+        viewModel.profileUserId = "user_99"
+        viewModel.readProfile(key: "test_profile_key")
+
+        XCTAssertNil(viewModel.retrievedProfile)
+        XCTAssertTrue(viewModel.isErrorMessage)
+        XCTAssertTrue(viewModel.statusMessage.contains("No profile found for user ID 'user_99'"))
+    }
+
+    func testReadProfileKeyIsCaseSensitive() {
+        viewModel.profileUserId = "user_99"
+        viewModel.profileUsername = "alice"
+        viewModel.profileRole = "Engineer"
+        viewModel.saveProfile(key: "Session_Profile_Key")
+
+        viewModel.readProfile(key: "session_profile_key")
+
+        XCTAssertNil(viewModel.retrievedProfile)
+        XCTAssertTrue(viewModel.isErrorMessage)
+        XCTAssertTrue(viewModel.statusMessage.contains("No secure storage item was found"))
+    }
+
+    func testReadProfileMissingShowsErrorAndHidesProfile() {
+        viewModel.readProfile(key: "missing_profile_key")
+
+        XCTAssertNil(viewModel.retrievedProfile)
+        XCTAssertTrue(viewModel.isErrorMessage)
+        XCTAssertTrue(viewModel.statusMessage.contains("No secure storage item was found"))
     }
 
     func testDataPersistenceRoundTrip() {
