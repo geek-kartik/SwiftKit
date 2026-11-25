@@ -158,6 +158,13 @@ public actor SampleBackend {
                 )
             }
 
+            // All regular /v1/ endpoints require a bearer token. The SDK's
+            // tokenProvider only supplies the Authorization header when a session
+            // is active, so an unauthenticated request must be rejected with 401.
+            guard authorization != nil else {
+                return unauthorized(path: path, method: method, reason: "Authentication required")
+            }
+
             let bodyMessage = message(from: request) ?? "No JSON body supplied."
             return success(
                 SampleAPIResponse(
@@ -186,13 +193,17 @@ public actor SampleBackend {
         }
     }
 
-    private func unauthorized(path: String, method: String) -> SampleBackendOutcome {
+    private func unauthorized(
+        path: String,
+        method: String,
+        reason: String = "Access token expired"
+    ) -> SampleBackendOutcome {
         SampleBackendOutcome(
             statusCode: 401,
             data: (try? JSONEncoder().encode(
                 SampleAPIResponse(
                     status: "error",
-                    message: "Access token expired for \(method) \(path).",
+                    message: "\(reason) for \(method) \(path).",
                     method: method,
                     path: path,
                     authorized: false
@@ -259,8 +270,13 @@ public final class SampleURLProtocol: URLProtocol {
     public override func startLoading() {
         let request = self.request
         Task { [weak self] in
+            // Simulate realistic network latency so the loading state stays visible
+            // instead of flickering for an instantly resolved mock response.
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard let self, !self.isCancelled else { return }
+
             let outcome = await SampleBackend.shared.handle(request)
-            guard let self, !self.isCancelled, let url = request.url else {
+            guard let url = request.url else {
                 return
             }
 

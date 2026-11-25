@@ -12,9 +12,22 @@ final class SampleBackendURLProtocolTests: XCTestCase {
         await SampleBackend.shared.reset()
     }
 
-    func testItemsEndpointReturnsDecodableJSON() async throws {
+    func testItemsEndpointRequiresAuthentication() async throws {
         let url = try XCTUnwrap(URL(string: "https://sample.swiftkit.test/v1/items"))
         let (data, response) = try await URLSession.shared.data(from: url)
+
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 401)
+        let decoded = try JSONDecoder().decode(SampleAPIResponse.self, from: data)
+        XCTAssertEqual(decoded.status, "error")
+        XCTAssertFalse(decoded.authorized ?? true)
+    }
+
+    func testItemsEndpointReturnsDecodableJSONWhenAuthenticated() async throws {
+        let url = try XCTUnwrap(URL(string: "https://sample.swiftkit.test/v1/items"))
+        var request = URLRequest(url: url)
+        request.setValue("Bearer sample_access_token", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
 
         XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
         let decoded = try JSONDecoder().decode(SampleAPIResponse.self, from: data)

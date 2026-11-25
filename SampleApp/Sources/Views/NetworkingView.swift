@@ -82,37 +82,16 @@ public struct NetworkingView: View {
                     }
                 }
 
-                HStack(spacing: 10) {
-                    Button {
-                        Task { await viewModel.send() }
-                    } label: {
-                        Label("Send Request", systemImage: "paperplane.fill")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.isLoading)
-
-                    if viewModel.isLoading {
-                        Button(role: .cancel) {
-                            viewModel.cancelActiveRequest()
-                        } label: {
-                            Label("Cancel", systemImage: "xmark.circle.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.red)
-                    }
+                Button {
+                    Task { await viewModel.send() }
+                } label: {
+                    Label("Send Request", systemImage: "paperplane.fill")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
                 }
-
-                if viewModel.isLoading {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text("In flight: \(viewModel.inFlightCount)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isLoading)
             }
 
             Section(header: HStack {
@@ -263,6 +242,39 @@ public struct NetworkingView: View {
         .navigationTitle("Networking Client")
         .onAppear { viewModel.activate() }
         .onDisappear { viewModel.cleanup() }
+        .overlay {
+            // Full-screen loading modal with a fade (opacity) transition.
+            // A 70%-transparent dimming layer keeps the main content visible behind it.
+            if viewModel.isLoading {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .controlSize(.large)
+                        Text("Request in flight")
+                            .font(.headline)
+                        Text("\(viewModel.inFlightCount) active request(s)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Button(role: .cancel) {
+                            viewModel.cancelActiveRequest()
+                        } label: {
+                            Label("Cancel Request", systemImage: "xmark.circle.fill")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                    }
+                    .padding(32)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(16)
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: viewModel.isLoading)
     }
 
     private func statusColor(for statusCode: Int) -> Color {
