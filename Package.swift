@@ -6,7 +6,8 @@ import PackageDescription
 let package = Package(
     name: "SwiftKit",
     platforms: [
-        .iOS(.v15)
+        .iOS(.v15),
+        .macOS(.v12)
     ],
     products: [
         // The single public SDK library product exported to consumers
@@ -14,6 +15,9 @@ let package = Package(
             name: "SwiftKit",
             targets: ["SwiftKit"]
         )
+    ],
+    dependencies: [
+        // No third-party dependencies. SwiftKit relies solely on native Apple frameworks.
     ],
     targets: [
         .target(
