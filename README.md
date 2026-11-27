@@ -44,7 +44,7 @@ targets: [
 
 ## Quick start
 
-Initialize once, early in app startup. `SwiftKit.initialize(configuration:)` validates the configuration and throws `SDKError.invalidConfiguration` or `SDKError.alreadyInitialized`; accessing `SwiftKit.shared` before a successful initialize traps.
+Initialize once, early in app startup. `SwiftKit.initialize(configuration:)` validates the configuration and throws `SDKError.invalidConfiguration` or `SDKError.alreadyInitialized`; accessing `SwiftKit.shared` before a successful initialize traps. Use `try SwiftKit.resolvedShared()` when you need a non-trapping accessor; it throws `SDKError.notInitialized` instead.
 
 ```swift
 import SwiftKit
@@ -68,6 +68,16 @@ SwiftKit.shared.connectivity.start()
 let request = try NetworkRequest(path: "/v1/accounts/1")
 let response = try await SwiftKit.shared.networkClient.send(request)
 ```
+
+Registered protocols can also be resolved directly from the container:
+
+```swift
+let logger = try SwiftKit.resolve(LoggerProtocol.self)
+logger.info("Resolved from the SDK container")
+```
+
+`SwiftKit.resolve(_:)` throws `SDKError.notInitialized` before initialization and
+`SDKError.dependencyMissing(dependencyName:)` when the requested type is not registered.
 
 Each module README has complete examples, including session creation and typed request decoding.
 

@@ -41,12 +41,14 @@ public protocol SessionManagerProtocol: Sendable {
 
     /// Refreshes the active session with new credentials.
     ///
-    /// The existing user identifier is preserved across the refresh.
+    /// The existing user identifier is preserved across the refresh. An expired session must be
+    /// renewed through ``refreshSession()`` instead.
     /// - Parameters:
     ///   - accessToken: The new bearer access token.
     ///   - refreshToken: An optional new refresh token.
     ///   - expiresAt: The new absolute expiration date.
-    /// - Throws: ``SessionError/noActiveSession`` when no session is active,
+    /// - Throws: ``SessionError/noActiveSession`` when no session is stored,
+    ///   ``SessionError/sessionExpired`` when the stored session has expired,
     ///   ``SessionError/invalidExpiry`` when the expiration is not in the future, or
     ///   ``SessionError/storageFailure`` when persistence fails.
     func refreshSession(accessToken: String, refreshToken: String?, expiresAt: Date) throws

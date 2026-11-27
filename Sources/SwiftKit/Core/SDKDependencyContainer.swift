@@ -42,6 +42,31 @@ internal final class SDKDependencyContainer: Sendable {
         )
     }
 
+    internal func resolve<T>(_ type: T.Type) throws -> T {
+        if type == SwiftKitConfiguration.self, let value = configuration as? T {
+            return value
+        }
+        if type == LoggerProtocol.self, let value = logger as? T {
+            return value
+        }
+        if type == ConnectivityMonitorProtocol.self, let value = connectivity as? T {
+            return value
+        }
+        if type == SecureStorageProtocol.self, let value = secureStorage as? T {
+            return value
+        }
+        if type == DeviceInfoProtocol.self, let value = deviceInfo as? T {
+            return value
+        }
+        if type == NetworkClientProtocol.self, let value = networkClient as? T {
+            return value
+        }
+        if type == SessionManagerProtocol.self, let value = session as? T {
+            return value
+        }
+        throw SDKError.dependencyMissing(dependencyName: String(describing: type))
+    }
+
     /// Custom initializer permitting dependency injection for unit testing.
     internal init(
         configuration: SwiftKitConfiguration,

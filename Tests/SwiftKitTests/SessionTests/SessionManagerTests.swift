@@ -168,6 +168,26 @@ final class SessionManagerTests: XCTestCase {
         }
     }
 
+    func testRefreshWithExpiredStoredSessionThrowsSessionExpired() throws {
+        let clock = TestClock(baseDate)
+        let (manager, _, storage, _) = makeManager(clock: clock)
+        let original = makeSession(expiresAt: baseDate.addingTimeInterval(3600))
+        try manager.startSession(original)
+        clock.advance(by: 7200)
+
+        XCTAssertThrowsError(
+            try manager.refreshSession(
+                accessToken: "new-access",
+                refreshToken: nil,
+                expiresAt: clock.now.addingTimeInterval(3600)
+            )
+        ) { error in
+            XCTAssertEqual(error as? SessionError, .sessionExpired)
+        }
+        XCTAssertEqual(manager.state, .expired)
+        XCTAssertEqual(try storage.codable(Session.self, forKey: storageKey), original)
+    }
+
     func testRefreshRejectsExpiredExpiration() throws {
         let (manager, _, _, _) = makeManager()
         try manager.startSession(makeSession(expiresAt: baseDate.addingTimeInterval(3600)))

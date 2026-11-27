@@ -114,15 +114,18 @@ internal final class SessionManager: SessionManagerProtocol {
 
     internal func refreshSession(accessToken: String, refreshToken: String?, expiresAt: Date) throws {
         let session: Session = try stateBox.mutate { state in
-            guard let existingUserID = state.session?.userID else {
+            guard let existing = state.session else {
                 throw SessionError.noActiveSession
+            }
+            guard !existing.isExpired(at: now()) else {
+                throw SessionError.sessionExpired
             }
 
             let refreshed = Session(
                 accessToken: accessToken,
                 refreshToken: refreshToken,
                 expiresAt: expiresAt,
-                userID: existingUserID
+                userID: existing.userID
             )
 
             guard refreshed.expiresAt > now() else {

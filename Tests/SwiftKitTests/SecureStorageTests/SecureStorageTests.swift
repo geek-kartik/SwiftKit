@@ -7,6 +7,16 @@ private struct TestProfile: Codable, Equatable {
     let displayName: String
 }
 
+private enum TestEncodingError: Error {
+    case intentionalFailure
+}
+
+private struct FailingEncodable: Encodable {
+    func encode(to encoder: Encoder) throws {
+        throw TestEncodingError.intentionalFailure
+    }
+}
+
 final class SecureStorageTests: XCTestCase {
     private var client: InMemoryKeychainClient!
     private var logger: MockLogger!
@@ -68,6 +78,15 @@ final class SecureStorageTests: XCTestCase {
         XCTAssertEqual(try storage.codable(TestProfile.self, forKey: "profile"), profile)
     }
 
+    func testSetCodableEncodingFailureThrowsAndDoesNotWrite() {
+        client.failOnWrite = .writeFailed(status: -2)
+
+        XCTAssertThrowsError(try storage.setCodable(FailingEncodable(), forKey: "profile")) { error in
+            XCTAssertEqual(error as? SecureStorageError, .encodingFailed)
+        }
+        XCTAssertFalse(storage.contains("profile"))
+    }
+
     func testDecodingInvalidDataThrows() throws {
         try storage.setData(Data("not-json".utf8), forKey: "profile")
 
@@ -108,6 +127,16 @@ final class SecureStorageTests: XCTestCase {
         XCTAssertEqual(try otherStorage.string(forKey: "two"), "second")
         XCTAssertEqual(client.count(forService: "com.swiftkit.tests.secure-storage"), 0)
         XCTAssertEqual(client.count(forService: "com.swiftkit.tests.other"), 1)
+    }
+
+    func testRemoveAllFailurePropagates() throws {
+        try storage.setString("value", forKey: "token")
+        client.failOnDelete = .deleteFailed(status: -3)
+
+        XCTAssertThrowsError(try storage.removeAll()) { error in
+            XCTAssertEqual(error as? SecureStorageError, .deleteFailed(status: -3))
+        }
+        XCTAssertEqual(try storage.string(forKey: "token"), "value")
     }
 
     func testBlankKeyThrowsInvalidKey() {

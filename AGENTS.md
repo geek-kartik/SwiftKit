@@ -105,7 +105,6 @@ Do not assume these features exist; they are not in `Sources/`:
 
 - Network inspector UI/overlay, console request logging, automatic 401 refresh/retry. `tokenProvider`, `onError`, and `onAuthenticationFailure` are wired; `NetworkConfiguration.refreshToken`, `logErrorDetails`, and `LogVerbosity` are not.
 - Biometric Keychain policies, keychain access groups, UIKit/screen/battery APIs, cellular/Wi-Fi interface detection, and idle session timeouts.
-- `SDKError.notInitialized`, `SDKError.dependencyMissing`, and `SessionError.sessionExpired` are declared but unused in production paths.
 
 Document and build against what is implemented. Extend these boundaries deliberately rather than describing planned work as shipped.
 

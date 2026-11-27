@@ -25,10 +25,23 @@ final class SwiftKitTests: XCTestCase {
 
         XCTAssertTrue(SwiftKit.isInitialized)
         XCTAssertNotNil(SwiftKit.shared)
+        XCTAssertTrue((try SwiftKit.resolvedShared()) === SwiftKit.shared)
         XCTAssertEqual(SwiftKit.shared.configuration.environment, .development)
         XCTAssertNotNil(SwiftKit.shared.logger)
         XCTAssertNotNil(SwiftKit.shared.secureStorage)
         XCTAssertNotNil(SwiftKit.shared.deviceInfo)
+    }
+
+    func testResolvedSharedThrowsNotInitialized() {
+        XCTAssertThrowsError(try SwiftKit.resolvedShared()) { error in
+            XCTAssertEqual(error as? SDKError, .notInitialized)
+        }
+    }
+
+    func testResolveThrowsNotInitializedBeforeInitialization() {
+        XCTAssertThrowsError(try SwiftKit.resolve(LoggerProtocol.self)) { error in
+            XCTAssertEqual(error as? SDKError, .notInitialized)
+        }
     }
 
     func testFacadeResolvesInjectedSecureStorage() throws {
@@ -49,6 +62,50 @@ final class SwiftKitTests: XCTestCase {
         try SwiftKit.shared.secureStorage.setString("secret", forKey: "token")
 
         XCTAssertEqual(try SwiftKit.shared.secureStorage.string(forKey: "token"), "secret")
+    }
+
+    func testResolveReturnsRegisteredDependencies() throws {
+        let config = SwiftKitConfiguration(
+            subsystem: "com.swiftkit.tests.resolve",
+            category: "CoreTests"
+        )
+        let logger = MockLogger()
+        let storage = KeychainStorage(
+            service: "com.swiftkit.tests.resolve",
+            client: InMemoryKeychainClient(),
+            logger: logger
+        )
+        let container = SDKDependencyContainer(
+            configuration: config,
+            logger: logger,
+            secureStorage: storage
+        )
+        SwiftKit.initializeForTesting(container: container)
+
+        let resolvedLogger: LoggerProtocol = try SwiftKit.resolve(LoggerProtocol.self)
+        XCTAssertTrue(resolvedLogger as AnyObject === logger)
+
+        let resolvedStorage: SecureStorageProtocol = try SwiftKit.resolve(SecureStorageProtocol.self)
+        XCTAssertTrue(resolvedStorage as AnyObject === storage)
+
+        let resolvedConfiguration: SwiftKitConfiguration = try SwiftKit.resolve(SwiftKitConfiguration.self)
+        XCTAssertEqual(resolvedConfiguration.subsystem, config.subsystem)
+    }
+
+    func testResolveThrowsDependencyMissingForUnregisteredType() throws {
+        try SwiftKit.initialize(
+            configuration: SwiftKitConfiguration(
+                subsystem: "com.swiftkit.tests.resolve",
+                category: "CoreTests"
+            )
+        )
+
+        XCTAssertThrowsError(try SwiftKit.resolve(Date.self)) { error in
+            XCTAssertEqual(
+                error as? SDKError,
+                .dependencyMissing(dependencyName: String(describing: Date.self))
+            )
+        }
     }
 
     func testDoubleInitializationThrowsError() throws {

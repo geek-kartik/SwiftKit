@@ -35,7 +35,7 @@ The manager is constructed by `SDKDependencyContainer` and exposed through `Swif
 | `state` | `SessionState` | Current authentication state, including `.expired`. |
 | `startSession(_:)` | `throws` | Establishes and persists a new session. |
 | `restoreSession()` | `throws -> Session?` | Restores the persisted session, retaining it as `.expired` when expired. |
-| `refreshSession(accessToken:refreshToken:expiresAt:)` | `throws` | Refreshes the active session with explicit credentials. |
+| `refreshSession(accessToken:refreshToken:expiresAt:)` | `throws` | Refreshes the active session with explicit credentials; rejects expired stored sessions. |
 | `refreshSession()` | `async throws -> Session` | Refreshes through the configured handler, skipping refresh while offline. |
 | `logout()` | `throws` | Cancels any in-flight refresh and clears the session. |
 | `validateExpiry()` | `Void` | Transitions an expired session to `.expired` and emits `.expired`. |
@@ -102,12 +102,14 @@ let configuration = SwiftKitConfiguration(sessionTokenRefreshHandler: AppRefresh
 
 `refreshSession()` returns `SessionError.missingRefreshToken`, `.refreshHandlerUnavailable`,
 `.offline`, `.refreshCancelled`, or `.refreshFailed` when the corresponding precondition fails.
+`refreshSession(accessToken:refreshToken:expiresAt:)` returns `.noActiveSession`, `.sessionExpired`,
+`.invalidExpiry`, or `.storageFailure` when the corresponding precondition fails.
 
 ## Lifecycle
 - `startSession(_:)` validates that the expiration is in the future before persisting.
 - `restoreSession()` returns `nil` when nothing is stored and retains an already-expired session as
   `.expired` so it can later be refreshed.
-- `refreshSession(...)` requires a stored session and preserves the existing user identifier.
+- `refreshSession(...)` requires a stored, non-expired session and preserves the existing user identifier. Expired sessions must be renewed through `refreshSession()`.
 - `refreshSession()` skips the exchange only when connectivity is available and reports `.disconnected`; it requires a refresh token and a configured handler.
 - `logout()` cancels any in-flight refresh and is tolerant of an absent stored session.
 - `validateExpiry()` and `handleUnauthorized()` are idempotent and safe to call repeatedly.

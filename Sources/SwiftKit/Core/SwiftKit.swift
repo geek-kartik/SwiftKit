@@ -75,16 +75,36 @@ public final class SwiftKit: Sendable {
         newInstance.logger.info("SwiftKit initialized successfully in \(configuration.environment.displayName) environment.")
     }
 
-    /// Returns the shared initialized SwiftKit instance.
-    /// Precondition: `SwiftKit.initialize(configuration:)` must have succeeded beforehand.
-    public static var shared: SwiftKit {
+    /// Returns the initialized shared SwiftKit instance without trapping.
+    /// - Returns: The shared instance.
+    /// - Throws: `SDKError.notInitialized` when `SwiftKit.initialize(configuration:)` has not succeeded.
+    public static func resolvedShared() throws -> SwiftKit {
         lock.lock()
         defer { lock.unlock() }
 
         guard let initializedInstance = instance else {
-            fatalError("SwiftKit has not been initialized. Please invoke SwiftKit.initialize(configuration:) before accessing SwiftKit.shared.")
+            throw SDKError.notInitialized
         }
         return initializedInstance
+    }
+
+    /// Resolves a registered SDK dependency by its public type.
+    /// - Parameter type: The public protocol or configuration type to resolve.
+    /// - Returns: The registered dependency.
+    /// - Throws: `SDKError.notInitialized` when SwiftKit has not been initialized, or
+    ///   `SDKError.dependencyMissing` when the requested type is not registered.
+    public static func resolve<T>(_ type: T.Type) throws -> T {
+        try resolvedShared().container.resolve(type)
+    }
+
+    /// Returns the shared initialized SwiftKit instance.
+    /// Precondition: `SwiftKit.initialize(configuration:)` must have succeeded beforehand; otherwise this traps.
+    public static var shared: SwiftKit {
+        do {
+            return try resolvedShared()
+        } catch {
+            fatalError(error.localizedDescription)
+        }
     }
 
     // MARK: - Testing Support

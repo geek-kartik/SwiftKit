@@ -89,4 +89,4 @@ SampleApp/
 └── Tests/SampleAppTests/      # ViewModel tests with mocks and URLProtocol tests
 ```
 
-Synchronous `refreshSession(accessToken:refreshToken:expiresAt:)` uses literal values from the UI; only the async `refreshSession()` uses the configured refresh handler. Concurrent `401`s share one refresh, logout or expiry skips refresh and retry, and a second `401` clears the session. Token refresh and 401 retry are implemented by the sample, not by SwiftKit.
+Synchronous `refreshSession(accessToken:refreshToken:expiresAt:)` uses literal values from the UI and requires a non-expired stored session; only the async `refreshSession()` uses the configured refresh handler and can renew an expired session. Concurrent `401`s share one refresh, logout or expiry skips refresh and retry, and a second `401` clears the session. Token refresh and 401 retry are implemented by the sample, not by SwiftKit.
